@@ -320,12 +320,12 @@
    3. Tampal URL tu di bawah, gantikan teks 'GANTIKAN_DENGAN_URL_APPS_SCRIPT'
    ============================================================ */
 const CONFIG = {
-  API_URL: 'GANTIKAN_DENGAN_URL_APPS_SCRIPT', // cth: https://script.google.com/macros/s/AKfycb.../exec
+  API_URL: 'https://script.google.com/macros/s/AKfycbxgehpPdX1PjUwsdyiPnPbY9pzvalEjCr1lBJReELDdDyxjLA-ANHMSoX45DnGQyziVmA/exec', // cth: https://script.google.com/macros/s/AKfycb.../exec
 };
 
 /* ============ SAMBUNGAN KE BACKEND (Google Apps Script) ============ */
 async function apiCall(action, data){
-  if(CONFIG.API_URL.includes('https://script.google.com/macros/s/AKfycbxxwlLg_HhgS8P1mfulzYHqOEMX7BR9hsLGqkqPjM81YwL6aS3XMlpTwQ0zsaFaE9uyyQ/exec')){
+  if(CONFIG.API_URL.includes('GANTIKAN_DENGAN')){
     toast('⚠ Backend belum disambung. Sila tetapkan CONFIG.API_URL dalam kod (rujuk arahan Code.gs).');
     throw new Error('API_URL belum ditetapkan');
   }
