@@ -312,6 +312,53 @@
 <div class="toast" id="toast"></div>
 
 <script>
+/* ============================================================
+   KONFIGURASI BACKEND — WAJIB TUKAR SEBELUM GUNA
+   ============================================================
+   1. Pasang backend ikut arahan dalam fail Code.gs (Google Apps Script)
+   2. Selepas "Deploy > New deployment > Web app", salin URL yang diberi
+   3. Tampal URL tu di bawah, gantikan teks 'GANTIKAN_DENGAN_URL_APPS_SCRIPT'
+   ============================================================ */
+const CONFIG = {
+  API_URL: 'GANTIKAN_DENGAN_URL_APPS_SCRIPT', // cth: https://script.google.com/macros/s/AKfycb.../exec
+};
+
+/* ============ SAMBUNGAN KE BACKEND (Google Apps Script) ============ */
+async function apiCall(action, data){
+  if(CONFIG.API_URL.includes('https://script.google.com/macros/s/AKfycbxxwlLg_HhgS8P1mfulzYHqOEMX7BR9hsLGqkqPjM81YwL6aS3XMlpTwQ0zsaFaE9uyyQ/exec')){
+    toast('⚠ Backend belum disambung. Sila tetapkan CONFIG.API_URL dalam kod (rujuk arahan Code.gs).');
+    throw new Error('API_URL belum ditetapkan');
+  }
+  try{
+    const res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      // guna text/plain supaya browser tidak hantar 'preflight' OPTIONS request
+      // (Google Apps Script Web App tidak layan preflight dengan baik)
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, ...data })
+    });
+    const json = await res.json();
+    if(!json.ok){ toast('⚠ ' + (json.error || 'Ralat tidak diketahui daripada backend.')); }
+    return json;
+  }catch(err){
+    toast('⚠ Gagal hubungi backend. Semak sambungan internet & CONFIG.API_URL.');
+    console.error(err);
+    return { ok:false, error:String(err) };
+  }
+}
+async function loadAllDataFromBackend(){
+  const res = await apiCall('getData', {});
+  if(!res.ok) return false;
+  USERS.length = 0;
+  res.users.forEach(u=> USERS.push({...u, aktif: u.aktif===true || u.aktif==='TRUE' || u.aktif==='true'}));
+  STATE.sessions = res.sessions.map(s=>({...s, id:Number(s.id)}));
+  STATE.audits = res.audits.map(a=>({...a, id:Number(a.id), sesiId:Number(a.sesiId)}));
+  STATE.pendingRegistrations = res.registrations.map(r=>({...r, id:Number(r.id)}));
+  const activeSess = STATE.sessions.filter(s=>s.status==='Aktif').sort((a,b)=>b.id-a.id)[0];
+  STATE.activeSessionId = activeSess ? activeSess.id : null;
+  return true;
+}
+
 /* ============ DATA MODEL ============ */
 const SECTIONS = [
   {code:'A', title:'Pengurusan & Dokumentasi', items:[
@@ -476,17 +523,9 @@ function blankItems(){
 }
 const ITEM_NOTE_HINT = {};
 
-/* ============ PENGGUNA & PERANAN (simulasi SSO + "Senarai Pengguna") ============
-   Dalam sistem sebenar (Power Apps), senarai ini ialah SharePoint List "Senarai Pengguna"
-   yang memetakan e-mel akaun Microsoft 365 sedia ada -> peranan. Pengguna TIDAK create
-   password baharu - mereka log masuk dengan akaun UTeM 365 mereka (SSO), dan app hanya
-   mencari e-mel itu dalam senarai ini untuk tentukan apa yang boleh dilihat/dibuat. */
-const USERS = [
-  {id:1, email:'pengerusi.osh@utem.edu.my', nama:'Ir. Aiman Rosli', peranan:'Admin', kampus:'Kedua-Dua', aktif:true},
-  {id:2, email:'noraini.hashim@utem.edu.my', nama:'Dr. Noraini Hashim', peranan:'Auditor', kampus:'Kampus Induk', aktif:true},
-  {id:3, email:'sarah.lim@utem.edu.my', nama:'Pn. Sarah Lim', peranan:'Auditor', kampus:'Kampus Teknologi', aktif:true},
-];
-let nextUserId = 4;
+/* ============ PENGGUNA & PERANAN ============
+   Dimuat daripada Google Sheets (SHEET_USERS) melalui backend selepas log masuk berjaya. */
+let USERS = [];
 let currentUser = null;
 let currentTheme = 'light';
 
@@ -498,13 +537,15 @@ function sessionName(id){
   const s = STATE.sessions.find(x=>x.id===id);
   return s ? s.nama : '(Sesi dipadam)';
 }
-function adminCreateSession(){
+async function adminCreateSession(){
   const input = document.getElementById('newSessionName');
   const nama = input.value.trim();
   if(!nama){ toast('Sila masukkan nama sesi audit.'); return; }
-  const id = nextSessionId++;
-  STATE.sessions.push({id, nama, tarikhMula:new Date().toISOString().slice(0,10), status:'Aktif'});
-  STATE.activeSessionId = id;
+  const tarikhMula = new Date().toISOString().slice(0,10);
+  const res = await apiCall('saveSession', { session:{ nama, tarikhMula, status:'Aktif' } });
+  if(!res.ok) return;
+  STATE.sessions.push({id:res.id, nama, tarikhMula, status:'Aktif'});
+  STATE.activeSessionId = res.id;
   input.value = '';
   toast(`Sesi "${nama}" dicipta dan dijadikan sesi semasa.`);
   renderAdmin();
@@ -517,10 +558,13 @@ function adminSetActiveSession(id){
   toast(`"${s.nama}" kini sesi semasa untuk audit baharu.`);
   renderAdmin();
 }
-function adminToggleSessionStatus(id){
+async function adminToggleSessionStatus(id){
   const s = STATE.sessions.find(x=>x.id===id);
   if(!s) return;
-  s.status = s.status==='Aktif' ? 'Selesai' : 'Aktif';
+  const newStatus = s.status==='Aktif' ? 'Selesai' : 'Aktif';
+  const res = await apiCall('saveSession', { session:{ id:s.id, nama:s.nama, tarikhMula:s.tarikhMula, status:newStatus } });
+  if(!res.ok) return;
+  s.status = newStatus;
   toast(`Sesi "${s.nama}" ditandakan ${s.status}.`);
   renderAdmin();
 }
@@ -531,7 +575,9 @@ function adminDeleteSession(id){
   const msg = affected>0
     ? `Padam sesi <b>"${s.nama}"</b>? <b>${affected} rekod audit</b> (termasuk draf) di bawah sesi ini akan turut dipadam SEPENUHNYA dan tidak lagi kelihatan kepada mana-mana pengguna, termasuk Admin. Tindakan ini tidak boleh dibatalkan.`
     : `Padam sesi <b>"${s.nama}"</b>? Tiada rekod audit terlibat.`;
-  showConfirmModal(msg, function(){
+  showConfirmModal(msg, async function(){
+    const res = await apiCall('deleteSession', { id: s.id });
+    if(!res.ok) return;
     STATE.audits = STATE.audits.filter(a=>a.sesiId!==id);
     STATE.sessions = STATE.sessions.filter(x=>x.id!==id);
     if(STATE.activeSessionId===id) STATE.activeSessionId = null;
@@ -550,42 +596,56 @@ function initials(name){ return name.replace(/^(Ir\.|Dr\.|En\.|Pn\.)\s*/,'').spl
 function isAdmin(){ return currentUser && currentUser.peranan === 'Admin'; }
 
 /* ============ PENGURUSAN PENGGUNA (Admin sahaja) ============ */
-function adminAddUser(){
+async function adminAddUser(){
   const nama = document.getElementById('newUserNama').value.trim();
   const email = document.getElementById('newUserEmail').value.trim().toLowerCase();
+  const password = document.getElementById('newUserPassword').value;
   const peranan = document.getElementById('newUserPeranan').value;
   const kampus = document.getElementById('newUserKampus').value;
-  if(!nama || !email){ toast('Sila isi nama dan e-mel.'); return; }
+  if(!nama || !email || !password){ toast('Sila isi nama, e-mel dan kata laluan.'); return; }
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Format e-mel tidak sah.'); return; }
+  if(password.length<6){ toast('Kata laluan mesti sekurang-kurangnya 6 aksara.'); return; }
   if(USERS.some(u=>u.email===email)){ toast('E-mel ini sudah wujud dalam Senarai Pengguna.'); return; }
-  USERS.push({id:nextUserId++, email, nama, peranan, kampus, aktif:true});
+  const res = await apiCall('createUser', { email, nama, password, peranan, kampus });
+  if(!res.ok) return;
+  USERS.push({id:res.id, email, nama, peranan, kampus, aktif:true});
   document.getElementById('newUserNama').value='';
   document.getElementById('newUserEmail').value='';
+  document.getElementById('newUserPassword').value='';
   toast(`Pengguna "${nama}" (${peranan}) ditambah ke Senarai Pengguna.`);
   renderAdminUsers();
 }
-function adminUpdateUserRole(id, newRole){
+async function adminUpdateUserRole(id, newRole){
   const u = USERS.find(x=>x.id===id);
   if(!u) return;
   if(u.peranan==='Admin' && newRole!=='Admin'){
     const otherAdmins = USERS.filter(x=>x.peranan==='Admin' && x.id!==id && x.aktif!==false);
     if(!otherAdmins.length){ toast('Tidak boleh — sekurang-kurangnya seorang Admin aktif mesti kekal.'); renderAdminUsers(); return; }
   }
+  const res = await apiCall('saveUser', { id, field:'peranan', value:newRole });
+  if(!res.ok) return;
   u.peranan = newRole;
   toast(`Peranan ${u.nama} ditukar kepada ${newRole}.`);
 }
-function adminUpdateUserKampus(id, kampus){
+async function adminUpdateUserKampus(id, kampus){
   const u = USERS.find(x=>x.id===id);
-  if(u){ u.kampus = kampus; toast(`Kampus ditugaskan untuk ${u.nama} dikemas kini.`); }
+  if(!u) return;
+  const res = await apiCall('saveUser', { id, field:'kampus', value:kampus });
+  if(!res.ok) return;
+  u.kampus = kampus;
+  toast(`Kampus ditugaskan untuk ${u.nama} dikemas kini.`);
 }
-function adminToggleUserAktif(id){
+async function adminToggleUserAktif(id){
   const u = USERS.find(x=>x.id===id);
   if(!u) return;
   if(u.aktif!==false && u.peranan==='Admin'){
     const otherActiveAdmins = USERS.filter(x=>x.peranan==='Admin' && x.id!==id && x.aktif!==false);
     if(!otherActiveAdmins.length){ toast('Tidak boleh nyahaktifkan — ini satu-satunya Admin aktif.'); return; }
   }
-  u.aktif = u.aktif===false ? true : false;
+  const newAktif = u.aktif===false ? true : false;
+  const res = await apiCall('saveUser', { id, field:'aktif', value:newAktif });
+  if(!res.ok) return;
+  u.aktif = newAktif;
   toast(`Akaun ${u.nama} ${u.aktif?'diaktifkan':'dinyahaktifkan'}.`);
   renderAdminUsers();
 }
@@ -597,9 +657,11 @@ function adminDeleteUser(id){
     const otherAdmins = USERS.filter(x=>x.peranan==='Admin' && x.id!==id);
     if(!otherAdmins.length){ toast('Tidak boleh padam — ini satu-satunya Admin dalam sistem.'); return; }
   }
-  const ownedAudits = STATE.audits.filter(a=>a.auditor===u.nama).length;
+  const ownedAudits = STATE.audits.filter(a=>a.emailAuditor===u.email).length;
   const msg = `Padam pengguna <b>"${u.nama}"</b> (${u.email}) daripada Senarai Pengguna? Mereka tidak lagi boleh log masuk.${ownedAudits>0 ? ` <br><br>⚠ Nota: ${ownedAudits} rekod audit sedia ada dicipta oleh pengguna ini akan KEKAL dalam sistem (tidak dipadam) untuk tujuan rekod, tetapi tidak lagi boleh diselenggara oleh pemiliknya.` : ''}`;
-  showConfirmModal(msg, function(){
+  showConfirmModal(msg, async function(){
+    const res = await apiCall('deleteUser', { id });
+    if(!res.ok) return;
     const idx = USERS.findIndex(x=>x.id===id);
     if(idx>-1) USERS.splice(idx,1);
     toast(`Pengguna "${u.nama}" dipadam daripada Senarai Pengguna.`);
@@ -607,44 +669,14 @@ function adminDeleteUser(id){
   }, {confirmLabel:'🗑 Ya, Padam Pengguna'});
 }
 
-let nextId = 5;
-let nextSessionId = 2;
+let nextId = 1;
+let nextSessionId = 1;
 const STATE = {
   admin: { teknologi: 6, induk: 9, criticalItems: [...CRITICAL_DEFAULT], deletePassword: 'osh1234' },
-  sessions: [
-    {id:1, nama:'Sesi Audit Semester 1 2026/2027', tarikhMula:'2026-07-01', status:'Aktif'},
-  ],
-  activeSessionId: 1,
+  sessions: [],
+  activeSessionId: null,
   pendingRegistrations: [],
-  audits: [
-    {
-      id:1, sesiId:1, kampus:'Kampus Teknologi', namaMakmal:'Makmal Elektronik Kuasa',
-      lokasi:'Blok E, Aras 1', tarikh:'2026-07-14T09:00', auditor:'Ir. Aiman Rosli', pic:'En. Hafiz Zainal',
-      items: seedItems({A3:1, C2:1}), statusRekod:'Selesai', nc:[], ofi:[]
-    },
-    {
-      id:2, sesiId:1, kampus:'Kampus Teknologi', namaMakmal:'Makmal Mekatronik',
-      lokasi:'Blok F, Aras 2', tarikh:'2026-07-15T10:30', auditor:'Pn. Sarah Lim', pic:'En. Zaki Hamid',
-      items: seedItems({D3:0, F1:1, A6:1, C4:1}), statusRekod:'Selesai',
-      nc:[{seksyen:'D3', gambar:null, penemuan:'Butang E-Stop pada mesin CNC tersekat, tidak kembali selepas ditekan.', tindakan:'Baik pulih/ganti unit E-Stop dan uji fungsi sebelum makmal digunakan semula.'}],
-      ofi:[]
-    },
-    {
-      id:3, sesiId:1, kampus:'Kampus Induk', namaMakmal:'Makmal Rangkaian Komputer',
-      lokasi:'Blok A, Aras 3', tarikh:'2026-07-16T14:00', auditor:'Dr. Noraini Hashim', pic:'En. Faiz Rahman',
-      items: seedItems({B2:1, E2:'NA'}), statusRekod:'Selesai', nc:[], ofi:[]
-    },
-    {
-      id:4, sesiId:1, kampus:'Kampus Induk', namaMakmal:'Makmal Litar Elektrik',
-      lokasi:'Blok A, Aras 1', tarikh:'2026-07-17T08:30', auditor:'Dr. Noraini Hashim', pic:'Pn. Zetty Aisyah',
-      items: seedItems({G1:0, G3:0, C1:0, B5:1, F5:1}), statusRekod:'Selesai',
-      nc:[
-        {seksyen:'G1', gambar:null, penemuan:'Tiada SDS untuk 3 jenis pelarut yang disimpan di rak bahan kimia.', tindakan:'Dapatkan & fail SDS terkini daripada pembekal untuk semua bahan kimia dalam masa 2 minggu.'},
-        {seksyen:'C1', gambar:null, penemuan:'Pintu panel elektrik utama tidak berkunci dan label litar sudah pudar.', tindakan:'Pasang kunci pada panel dan cetak semula label litar.'}
-      ],
-      ofi:[{seksyen:'B5', gambar:null, cadangan:'Cadang tambah rak troli mudah alih untuk kurangkan kesesakan laluan utama.'}]
-    },
-  ],
+  audits: [],
 };
 
 /* ============ SCORING ============ */
@@ -681,8 +713,6 @@ function fmtDate(dt){
 /* ============ LOGIN (simulasi SSO Microsoft 365) ============ */
 let loginScreenMode = 'login'; // 'login' | 'register' | 'submitted'
 function renderLogin(){
-  const activeUsers = USERS.filter(u=>u.aktif!==false);
-
   let body = '';
   if(loginScreenMode==='register'){
     body = `
@@ -692,8 +722,16 @@ function renderLogin(){
         <input type="text" id="regNama" placeholder="cth. En. Ahmad Fauzi">
       </div>
       <div class="field">
-        <label class="field-label">E-mel UTeM</label>
+        <label class="field-label">E-mel</label>
         <input type="text" id="regEmail" placeholder="ahmad.fauzi@utem.edu.my">
+      </div>
+      <div class="field">
+        <label class="field-label">Kata Laluan</label>
+        <input type="password" id="regPassword" placeholder="Sekurang-kurangnya 6 aksara">
+      </div>
+      <div class="field">
+        <label class="field-label">Sahkan Kata Laluan</label>
+        <input type="password" id="regPassword2" placeholder="Taip semula kata laluan" onkeydown="if(event.key==='Enter') submitRegistrationRequest()">
       </div>
       <div class="field">
         <label class="field-label">Kampus</label>
@@ -708,7 +746,7 @@ function renderLogin(){
       </div>
       <div style="display:flex;gap:8px;margin-top:14px;">
         <button class="btn" onclick="loginScreenMode='login'; renderLogin();">← Batal</button>
-        <button class="btn primary" onclick="submitRegistrationRequest()">Hantar Permohonan</button>
+        <button class="btn primary" id="regSubmitBtn" onclick="submitRegistrationRequest()">Hantar Permohonan</button>
       </div>`;
   } else if(loginScreenMode==='submitted'){
     body = `
@@ -716,19 +754,16 @@ function renderLogin(){
       <button class="btn primary" style="width:100%;justify-content:center;" onclick="loginScreenMode='login'; renderLogin();">← Kembali ke Log Masuk</button>`;
   } else {
     body = `
-      <div class="login-sso">🔒 Log masuk menggunakan akaun Microsoft 365 UTeM sedia ada (SSO) — tiada kata laluan baharu diperlukan.</div>
-      <div style="font-size:11.5px;font-weight:600;color:var(--text-mute);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Pilih akaun (demo)</div>
-      ${activeUsers.map(u=>`
-        <div class="acct-btn" onclick="doLogin(${u.id})">
-          <div class="acct-avatar">${initials(u.nama)}</div>
-          <div>
-            <div class="acct-name">${u.nama}</div>
-            <div class="acct-email">${u.email}</div>
-          </div>
-          <div class="acct-role"><span class="badge ${u.peranan==='Admin'?'red':'grey'}">${u.peranan}</span></div>
-        </div>`).join('')}
-      ${!activeUsers.length ? `<div class="empty">Tiada akaun aktif. Hubungi Admin.</div>` : ''}
-      <div style="font-size:11.5px;color:var(--text-mute);margin:14px 0;">Peranan ditentukan automatik daripada senarai "Senarai Pengguna" (SharePoint List) — bukan dipilih manual dalam sistem sebenar.</div>
+      <div class="field">
+        <label class="field-label">E-mel</label>
+        <input type="text" id="loginEmail" placeholder="nama@utem.edu.my" onkeydown="if(event.key==='Enter') document.getElementById('loginPassword').focus()">
+      </div>
+      <div class="field" style="margin-bottom:10px;">
+        <label class="field-label">Kata Laluan</label>
+        <input type="password" id="loginPassword" placeholder="Kata laluan" onkeydown="if(event.key==='Enter') doLogin()">
+      </div>
+      <div id="loginError" style="color:var(--red);font-size:12.5px;margin-bottom:10px;display:none;"></div>
+      <button class="btn primary" id="loginSubmitBtn" style="width:100%;justify-content:center;" onclick="doLogin()">Log Masuk</button>
       <hr class="soft">
       <button class="btn" style="width:100%;justify-content:center;" onclick="loginScreenMode='register'; renderLogin();">📝 Belum Ada Akaun? Mohon Pendaftaran</button>`;
   }
@@ -746,51 +781,79 @@ function renderLogin(){
         ${body}
       </div>
     </div>`;
+  const emailField = document.getElementById('loginEmail');
+  if(emailField) emailField.focus();
 }
-function submitRegistrationRequest(){
+async function submitRegistrationRequest(){
   const nama = document.getElementById('regNama').value.trim();
   const email = document.getElementById('regEmail').value.trim().toLowerCase();
+  const password = document.getElementById('regPassword').value;
+  const password2 = document.getElementById('regPassword2').value;
   const kampus = document.getElementById('regKampus').value;
   const alasan = document.getElementById('regAlasan').value.trim();
-  if(!nama || !email){ toast('Sila isi nama dan e-mel.'); return; }
+  if(!nama || !email || !password){ toast('Sila isi nama, e-mel dan kata laluan.'); return; }
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Format e-mel tidak sah.'); return; }
-  if(USERS.some(u=>u.email===email)){ toast('E-mel ini sudah berdaftar. Sila log masuk terus.'); return; }
-  if(STATE.pendingRegistrations.some(r=>r.email===email)){ toast('Permohonan dengan e-mel ini sudah dihantar dan sedang menunggu kelulusan.'); return; }
-  STATE.pendingRegistrations.push({
-    id: Date.now(), nama, email, kampus, alasan, tarikhMohon: new Date().toISOString()
-  });
+  if(password.length<6){ toast('Kata laluan mesti sekurang-kurangnya 6 aksara.'); return; }
+  if(password!==password2){ toast('Kata laluan dan sahkan kata laluan tidak sepadan.'); return; }
+  const btn = document.getElementById('regSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Menghantar...';
+  const res = await apiCall('register', { nama, email, password, kampus, alasan });
+  btn.disabled = false; btn.textContent = 'Hantar Permohonan';
+  if(!res.ok) return;
   loginScreenMode = 'submitted';
   renderLogin();
 }
-function adminApproveRegistration(id){
-  const r = STATE.pendingRegistrations.find(x=>x.id===id);
-  if(!r) return;
-  const role = document.getElementById('approveRole-'+id).value;
-  if(USERS.some(u=>u.email===r.email)){ toast('E-mel ini sudah wujud dalam Senarai Pengguna.'); return; }
-  USERS.push({id:nextUserId++, email:r.email, nama:r.nama, peranan:role, kampus:r.kampus, aktif:true});
-  STATE.pendingRegistrations = STATE.pendingRegistrations.filter(x=>x.id!==id);
-  toast(`${r.nama} diterima sebagai ${role}.`);
-  renderAdminUsers();
-}
-function adminRejectRegistration(id){
-  const r = STATE.pendingRegistrations.find(x=>x.id===id);
-  if(!r) return;
-  STATE.pendingRegistrations = STATE.pendingRegistrations.filter(x=>x.id!==id);
-  toast(`Permohonan ${r.nama} ditolak.`);
-  renderAdminUsers();
-}
-function doLogin(id){
+async function doLogin(){
+  const emailField = document.getElementById('loginEmail');
+  const pwField = document.getElementById('loginPassword');
+  const errBox = document.getElementById('loginError');
+  const email = emailField.value.trim().toLowerCase();
+  const password = pwField.value;
+  errBox.style.display = 'none';
+  if(!email || !password){ errBox.textContent = 'Sila isi e-mel dan kata laluan.'; errBox.style.display='block'; return; }
+  const btn = document.getElementById('loginSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Log masuk...';
   try{
-    const u = USERS.find(x=>x.id===id);
-    if(!u || u.aktif===false){ toast('Akaun ini tidak aktif.'); return; }
-    currentUser = u;
+    const res = await apiCall('login', { email, password });
+    if(!res.ok){
+      errBox.textContent = res.error || 'Log masuk gagal.';
+      errBox.style.display = 'block';
+      return;
+    }
+    currentUser = res.user;
+    toast(`Memuatkan data...`);
+    const loaded = await loadAllDataFromBackend();
+    if(!loaded){ errBox.textContent = 'Gagal muat data daripada backend.'; errBox.style.display='block'; return; }
     renderShell();
     nav('dashboard');
     toast(`Log masuk sebagai ${currentUser.nama} (${currentUser.peranan}).`);
   }catch(err){
     showFatalError(err, 'doLogin');
+  }finally{
+    btn.disabled = false; btn.textContent = 'Log Masuk';
   }
-
+}
+async function adminApproveRegistration(id){
+  const r = STATE.pendingRegistrations.find(x=>x.id===id);
+  if(!r) return;
+  const role = document.getElementById('approveRole-'+id).value;
+  if(USERS.some(u=>u.email===r.email)){ toast('E-mel ini sudah wujud dalam Senarai Pengguna.'); return; }
+  const res = await apiCall('approveRegistration', { id, peranan: role });
+  if(!res.ok) return;
+  USERS.push({id: Date.now(), email:r.email, nama:r.nama, peranan:role, kampus:r.kampus, aktif:true});
+  STATE.pendingRegistrations = STATE.pendingRegistrations.filter(x=>x.id!==id);
+  toast(`${r.nama} diterima sebagai ${role}.`);
+  await loadAllDataFromBackend(); // segarkan semula supaya ID pengguna baharu tepat
+  renderAdminUsers();
+}
+async function adminRejectRegistration(id){
+  const r = STATE.pendingRegistrations.find(x=>x.id===id);
+  if(!r) return;
+  const res = await apiCall('rejectRegistration', { id });
+  if(!res.ok) return;
+  STATE.pendingRegistrations = STATE.pendingRegistrations.filter(x=>x.id!==id);
+  toast(`Permohonan ${r.nama} ditolak.`);
+  renderAdminUsers();
 }
 function doLogout(){
   currentUser = null;
@@ -924,7 +987,7 @@ function dashboardFocusSessionId(){
   return sorted.length ? sorted[0].id : null;
 }
 function campusStats(kampus, sesiId){
-  const base = isAdmin() ? STATE.audits : STATE.audits.filter(a=>a.auditor===currentUser.nama);
+  const base = isAdmin() ? STATE.audits : STATE.audits.filter(a=>a.emailAuditor===currentUser.email);
   const list = base.filter(a=>a.kampus===kampus && a.sesiId===sesiId);
   const capacity = kampus==='Kampus Teknologi' ? STATE.admin.teknologi : STATE.admin.induk;
   const scored = list.map(a=>computeScore(a.items));
@@ -941,7 +1004,7 @@ function renderDashboard(){
   const focusSessionId = dashboardSessionFilter !== null ? dashboardSessionFilter : defaultSessionId;
   const focusSession = STATE.sessions.find(s=>s.id===focusSessionId) || null;
 
-  const all = (isAdmin() ? STATE.audits : STATE.audits.filter(a=>a.auditor===currentUser.nama))
+  const all = (isAdmin() ? STATE.audits : STATE.audits.filter(a=>a.emailAuditor===currentUser.email))
     .filter(a=>a.sesiId===focusSessionId)
     .filter(a=>dashboardCampusFilter==='Semua' || a.kampus===dashboardCampusFilter);
   const allScored = all.map(a=>computeScore(a.items));
@@ -1092,11 +1155,11 @@ function renderDashboard(){
       </div>
       <div class="card">
         <div class="stat-label">NCR · Kampus Teknologi</div>
-        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Teknologi' && (isAdmin()||a.auditor===currentUser.nama)).reduce((s,a)=>s+a.nc.length,0)}</div>
+        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Teknologi' && (isAdmin()||a.emailAuditor===currentUser.email)).reduce((s,a)=>s+a.nc.length,0)}</div>
       </div>
       <div class="card">
         <div class="stat-label">NCR · Kampus Induk</div>
-        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Induk' && (isAdmin()||a.auditor===currentUser.nama)).reduce((s,a)=>s+a.nc.length,0)}</div>
+        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Induk' && (isAdmin()||a.emailAuditor===currentUser.email)).reduce((s,a)=>s+a.nc.length,0)}</div>
       </div>
     </div>
 
@@ -1109,11 +1172,11 @@ function renderDashboard(){
       </div>
       <div class="card">
         <div class="stat-label">OFI · Kampus Teknologi</div>
-        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Teknologi' && (isAdmin()||a.auditor===currentUser.nama)).reduce((s,a)=>s+a.ofi.length,0)}</div>
+        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Teknologi' && (isAdmin()||a.emailAuditor===currentUser.email)).reduce((s,a)=>s+a.ofi.length,0)}</div>
       </div>
       <div class="card">
         <div class="stat-label">OFI · Kampus Induk</div>
-        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Induk' && (isAdmin()||a.auditor===currentUser.nama)).reduce((s,a)=>s+a.ofi.length,0)}</div>
+        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Induk' && (isAdmin()||a.emailAuditor===currentUser.email)).reduce((s,a)=>s+a.ofi.length,0)}</div>
       </div>
     </div>
 
@@ -1497,7 +1560,7 @@ function viewAuditDetail(id){
   }).join('');
 
   const sess = STATE.sessions.find(x=>x.id===a.sesiId);
-  const isOwner = a.auditor === currentUser.nama;
+  const isOwner = a.emailAuditor === currentUser.email;
   const sessionClosed = sess && sess.status==='Selesai';
   const canManage = isAdmin() || (isOwner && !sessionClosed);
   document.getElementById('auditDetailModalHost').innerHTML = `
@@ -1532,13 +1595,15 @@ function deleteAuditRecord(id){
   const a = STATE.audits.find(x=>x.id===id);
   if(!a) return;
   const sess = STATE.sessions.find(x=>x.id===a.sesiId);
-  const isOwner = a.auditor === currentUser.nama;
+  const isOwner = a.emailAuditor === currentUser.email;
   const canManage = isAdmin() || (isOwner && !(sess && sess.status==='Selesai'));
   if(!canManage){
     toast('Sesi audit ini telah ditutup — pemarkahan tidak boleh dipadam lagi.');
     return;
   }
-  showConfirmModal(`Padam pemarkahan <b>"${a.namaMakmal}"</b>? Semua data checklist, NC dan OFI berkaitan akan turut dipadam. Tindakan ini tidak boleh dibatalkan.`, function(){
+  showConfirmModal(`Padam pemarkahan <b>"${a.namaMakmal}"</b>? Semua data checklist, NC dan OFI berkaitan akan turut dipadam. Tindakan ini tidak boleh dibatalkan.`, async function(){
+    const res = await apiCall('deleteAudit', { id });
+    if(!res.ok) return;
     STATE.audits = STATE.audits.filter(x=>x.id!==id);
     toast(`Pemarkahan "${a.namaMakmal}" telah dipadam.`);
     nav('dashboard');
@@ -1745,6 +1810,10 @@ function renderAdminUsers(){
         <label class="field-label">E-mel UTeM</label>
         <input type="text" id="newUserEmail" placeholder="ahmad.fauzi@utem.edu.my">
       </div>
+      <div class="field" style="min-width:160px;margin-bottom:0;">
+        <label class="field-label">Kata Laluan Awal</label>
+        <input type="password" id="newUserPassword" placeholder="Min. 6 aksara">
+      </div>
       <div class="field" style="min-width:130px;margin-bottom:0;">
         <label class="field-label">Peranan</label>
         <select id="newUserPeranan">
@@ -1799,7 +1868,7 @@ function b1LoadForEdit(id){
   if(!a) return;
   const sess = STATE.sessions.find(x=>x.id===a.sesiId);
   const sessionClosed = sess && sess.status==='Selesai';
-  if(!isAdmin() && a.auditor !== currentUser.nama){
+  if(!isAdmin() && a.emailAuditor !== currentUser.email){
     toast('Anda hanya boleh edit audit yang anda cipta sendiri.'); return;
   }
   if(!isAdmin() && sessionClosed){
@@ -1937,7 +2006,7 @@ function b1Next(){
   b1.step++; renderBorang1();
 }
 function b1Prev(){ b1.step--; renderBorang1(); }
-function b1SaveDraft(){
+async function b1SaveDraft(){
   if(!b1.general.namaMakmal){
     toast('Sila isi sekurang-kurangnya Nama Makmal sebelum simpan draf.'); return;
   }
@@ -1947,22 +2016,27 @@ function b1SaveDraft(){
   const payload = {
     kampus:b1.general.kampus, namaMakmal:b1.general.namaMakmal, lokasi:b1.general.lokasi,
     tarikh:b1.general.tarikh || new Date().toISOString(),
-    auditor:b1.general.auditor || currentUser.nama, pic:b1.general.pic,
-    items: b1.items, statusRekod:'Draf'
+    auditor:b1.general.auditor || currentUser.nama, emailAuditor: currentUser.email, pic:b1.general.pic,
+    items: b1.items, nc: [], ofi: [], statusRekod:'Draf'
   };
   if(b1.editingId){
+    const existing = STATE.audits.find(a=>a.id===b1.editingId);
+    const merged = {...existing, ...payload, sesiId: existing.sesiId};
+    const res = await apiCall('saveAudit', { audit: {...merged, id:b1.editingId} });
+    if(!res.ok) return;
     const idx = STATE.audits.findIndex(a=>a.id===b1.editingId);
-    if(idx>-1) STATE.audits[idx] = {...STATE.audits[idx], ...payload};
+    if(idx>-1) STATE.audits[idx] = merged;
   } else {
-    const id = nextId++;
-    STATE.audits.push({id, sesiId:STATE.activeSessionId, ...payload, nc:[], ofi:[]});
-    b1.editingId = id;
+    const res = await apiCall('saveAudit', { audit: {sesiId:STATE.activeSessionId, ...payload} });
+    if(!res.ok) return;
+    STATE.audits.push({id:res.id, sesiId:STATE.activeSessionId, ...payload});
+    b1.editingId = res.id;
   }
   toast('Draf disimpan. Sambung bila-bila masa dari Dashboard.');
   b1 = freshB1();
   nav('dashboard');
 }
-function b1Submit(){
+async function b1Submit(){
   if(!b1.editingId && !getActiveSession()){
     toast('Tiada sesi audit aktif — tidak boleh cipta audit baharu.'); return;
   }
@@ -1971,18 +2045,25 @@ function b1Submit(){
   }
   const payload = {
     kampus:b1.general.kampus, namaMakmal:b1.general.namaMakmal, lokasi:b1.general.lokasi,
-    tarikh:b1.general.tarikh || new Date().toISOString(), auditor:b1.general.auditor, pic:b1.general.pic,
+    tarikh:b1.general.tarikh || new Date().toISOString(), auditor:b1.general.auditor,
+    emailAuditor: currentUser.email, pic:b1.general.pic,
     items: b1.items, statusRekod:'Selesai'
   };
   let id, isFreshCompletion;
   if(b1.editingId){
-    const idx = STATE.audits.findIndex(a=>a.id===b1.editingId);
-    isFreshCompletion = idx>-1 && STATE.audits[idx].statusRekod==='Draf';
+    const existing = STATE.audits.find(a=>a.id===b1.editingId);
+    isFreshCompletion = existing && existing.statusRekod==='Draf';
     id = b1.editingId;
-    if(idx>-1) STATE.audits[idx] = {...STATE.audits[idx], ...payload};
+    const merged = {...existing, ...payload, nc: existing.nc||[], ofi: existing.ofi||[]};
+    const res = await apiCall('saveAudit', { audit: {...merged, id} });
+    if(!res.ok) return;
+    const idx = STATE.audits.findIndex(a=>a.id===id);
+    if(idx>-1) STATE.audits[idx] = merged;
   } else {
-    id = nextId++;
-    STATE.audits.push({id, sesiId:STATE.activeSessionId, ...payload, nc:[], ofi:[]});
+    const res = await apiCall('saveAudit', { audit: {sesiId:STATE.activeSessionId, nc:[], ofi:[], ...payload} });
+    if(!res.ok) return;
+    id = res.id;
+    STATE.audits.push({id, sesiId:STATE.activeSessionId, nc:[], ofi:[], ...payload});
     isFreshCompletion = true;
   }
   toast(isFreshCompletion ? `Borang 1 disimpan. Teruskan ke Borang 2 untuk laporkan NC/OFI (jika ada).` : `Pemarkahan "${b1.general.namaMakmal}" dikemas kini.`);
@@ -2012,7 +2093,7 @@ function renderBorang2(){
   const availableAudits = STATE.audits.filter(a=>{
     if(a.statusRekod !== 'Selesai') return false;
     if(isAdmin()) return true;
-    return a.auditor === currentUser.nama;
+    return a.emailAuditor === currentUser.email;
   });
   // Jika audit yang sedang dipilih bukan milik pengguna ini / tiada akses, batalkan pemilihan (elak papar data orang lain)
   if(b2.auditId && !availableAudits.some(a=>String(a.id)===String(b2.auditId))){
@@ -2199,14 +2280,18 @@ function b2OFIPhoto(idx, input){
   r.onload = e => { b2.ofi[idx].gambar = e.target.result; renderBorang2(); };
   r.readAsDataURL(f);
 }
-function b2Submit(){
+async function b2Submit(){
   const audit = STATE.audits.find(a=>String(a.id)===String(b2.auditId));
   if(!audit){ toast('Pilih makmal dahulu.'); return; }
-  if(!isAdmin() && audit.auditor !== currentUser.nama){ toast('Anda tidak dibenarkan mengubah laporan makmal ini.'); return; }
+  if(!isAdmin() && audit.emailAuditor !== currentUser.email){ toast('Anda tidak dibenarkan mengubah laporan makmal ini.'); return; }
   const sess = STATE.sessions.find(x=>x.id===audit.sesiId);
   if(!isAdmin() && sess && sess.status==='Selesai'){ toast('Sesi audit ini telah ditutup — laporan tidak boleh diubah.'); return; }
-  audit.nc = b2.nc.filter(n=>n.penemuan || n.tindakan || n.gambar);
-  audit.ofi = b2.ofi.filter(o=>o.cadangan || o.gambar);
+  const nc = b2.nc.filter(n=>n.penemuan || n.tindakan || n.gambar);
+  const ofi = b2.ofi.filter(o=>o.cadangan || o.gambar);
+  const res = await apiCall('saveAudit', { audit: {...audit, nc, ofi} });
+  if(!res.ok) return;
+  audit.nc = nc;
+  audit.ofi = ofi;
   toast(`Laporan NC/OFI untuk "${audit.namaMakmal}" disimpan.`);
   b2 = freshB2();
   nav('dashboard');
