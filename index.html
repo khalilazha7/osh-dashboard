@@ -2043,11 +2043,21 @@ function b1LoadForEdit(id){
   nav('borang1');
   toast(a.statusRekod==='Draf' ? 'Menyambung draf sedia ada.' : `Mengedit pemarkahan "${a.namaMakmal}".`);
 }
+function b1SectionComplete(idx){
+  if(idx===0){
+    return !!(b1.general.namaMakmal && b1.general.lokasi && b1.general.auditor);
+  }
+  if(idx>=1 && idx<=SECTIONS.length){
+    const sec = SECTIONS[idx-1];
+    return sec.items.every(([code])=> b1.items[code] && b1.items[code].skor!==null);
+  }
+  return false;
+}
 function renderBorang1(){
   if(!b1) b1 = freshB1();
   const steps = ['Maklumat Am', ...SECTIONS.map(s=>s.code), 'Semakan'];
   const railHtml = steps.map((label,i)=>{
-    const cls = i===b1.step ? 'active' : (i<b1.step ? 'done':'');
+    const cls = i===b1.step ? 'active' : (b1SectionComplete(i) ? 'done' : '');
     const dotLabel = i===0 ? '1' : (i===steps.length-1 ? '✓' : label);
     return `<div class="rail-step ${cls}" onclick="b1GoStep(${i})"><span class="dot">${dotLabel}</span>${i===0?'Maklumat Am': i===steps.length-1 ? 'Semakan' : 'Bhg. '+label}</div>${i<steps.length-1?'<span class="rail-arrow">›</span>':''}`;
   }).join('');
@@ -2121,12 +2131,25 @@ function renderBorang1(){
     const s = computeScore(b1.items);
     const unansweredTotal = countUnanswered(b1.items);
     const crit = STATE.admin.criticalItems.filter(c=>b1.items[c].skor==='0');
+    const incompleteSections = SECTIONS.map((sec,i)=>{
+      const missing = sec.items.filter(([code])=> !b1.items[code] || b1.items[code].skor===null).length;
+      return {sec, stepIdx:i+1, missing};
+    }).filter(x=>x.missing>0);
     body = `
       <div class="callout ${(crit.length||unansweredTotal)?'warn':''}">
         <b>Rumusan Audit:</b> Jumlah skor ${s.sum} / ${s.max} — <b>${s.pct.toFixed(1)}%</b> — Status: <b>${s.status}</b>.
         ${crit.length ? `<br><b>Amaran:</b> ${crit.length} item kritikal bertanda "Tidak Patuh" (${crit.join(', ')}). Ini akan ditandakan sebagai KKP Kritikal.` : '<br>Tiada kegagalan pada item kritikal.'}
         ${unansweredTotal ? `<br><b>⚠ ${unansweredTotal} daripada ${getAllCodes().length} item masih belum dijawab.</b> Sila lengkapkan semua bahagian sebelum menghantar (atau guna "Simpan Draf" untuk sambung kemudian).` : ''}
       </div>
+      ${incompleteSections.length ? `
+      <div class="card" style="border:1.5px solid var(--amber);margin-bottom:16px;">
+        <div style="font-weight:700;color:var(--amber);margin-bottom:10px;">📋 Bahagian belum lengkap — klik untuk terus ke bahagian berkenaan:</div>
+        ${incompleteSections.map(x=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--line-soft);">
+            <div><b>Bahagian ${x.sec.code}.</b> ${x.sec.title} <span class="badge amber" style="margin-left:6px;">${x.missing} item belum dijawab</span></div>
+            <button class="btn sm" onclick="b1GoStep(${x.stepIdx})">Isi Sekarang →</button>
+          </div>`).join('')}
+      </div>` : ''}
       <div class="grid cols-2">
         <div class="card"><div class="stat-label">Makmal</div><div style="font-weight:600;">${b1.general.namaMakmal||'-'}</div><div class="stat-note">${b1.general.kampus} · ${b1.general.lokasi||'-'}</div></div>
         <div class="card"><div class="stat-label">Auditor / PIC</div><div style="font-weight:600;">${b1.general.auditor||'-'}</div><div class="stat-note">PIC: ${b1.general.pic||'-'}</div></div>
@@ -2454,8 +2477,9 @@ async function b2NCPhoto(idx, input){
       b2.nc[idx].gambar = res.url; // gantikan dengan pautan Google Drive kekal
       toast('Gambar dimuat naik ke Google Drive.');
     } else {
-      toast('⚠ Gagal muat naik gambar ke Drive. Gambar tidak akan disimpan bersama laporan.');
       b2.nc[idx].gambar = null;
+      showFatalError(new Error(res.error || 'Ralat tidak diketahui'), 'b2NCPhoto (muat naik gambar NC)');
+      return; // elak renderBorang2() timpa skrin ralat
     }
     renderBorang2();
   };
@@ -2474,8 +2498,9 @@ async function b2OFIPhoto(idx, input){
       b2.ofi[idx].gambar = res.url;
       toast('Gambar dimuat naik ke Google Drive.');
     } else {
-      toast('⚠ Gagal muat naik gambar ke Drive. Gambar tidak akan disimpan bersama laporan.');
       b2.ofi[idx].gambar = null;
+      showFatalError(new Error(res.error || 'Ralat tidak diketahui'), 'b2OFIPhoto (muat naik gambar OFI)');
+      return; // elak renderBorang2() timpa skrin ralat
     }
     renderBorang2();
   };
