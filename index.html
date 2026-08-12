@@ -1589,8 +1589,7 @@ function generateNcOfiReport(){
       makmal:a.namaMakmal, kampus:a.kampus, auditor:a.auditor, tarikh:a.tarikh,
       bil: idx+1, seksyen:item.seksyen, teksSeksyen: itemText(item.seksyen),
       penemuan: item.penemuan||'', tindakan: item.tindakan||'', cadangan: item.cadangan||'',
-      status: item.status||'Belum Ditutup', tarikhSasaran: item.tarikhSasaran||'',
-      adaGambar: !!item.gambar
+      status: item.status||'Belum Ditutup', tarikhSasaran: item.tarikhSasaran||''
     }));
   });
 
@@ -1600,20 +1599,20 @@ function generateNcOfiReport(){
   if(!entries.length){ toast(`Tiada rekod ${fileTag} untuk skop ini.`); return; }
 
   if(format==='excel'){
-    const headerNC = ['Bil','Makmal','Kampus','Seksyen','Item Seksyen','Perincian Penemuan & Lokasi','Cadangan Tindakan Pembetulan','Status','Tarikh Sasaran','Ada Gambar'];
-    const headerOFI = ['Bil','Makmal','Kampus','Seksyen','Item Seksyen','Cadangan Penambahbaikan','Ada Gambar'];
+    const headerNC = ['Bil','Makmal','Kampus','Seksyen','Item Seksyen','Perincian Penemuan & Lokasi','Cadangan Tindakan Pembetulan','Status','Tarikh Sasaran'];
+    const headerOFI = ['Bil','Makmal','Kampus','Seksyen','Item Seksyen','Cadangan Penambahbaikan'];
     const headerKrit = ['Bil','Makmal','Kampus','Auditor','Tarikh Audit','Kod Item Kritikal','Item Audit','Catatan'];
     const rows = [type==='nc' ? headerNC : type==='ofi' ? headerOFI : headerKrit];
     entries.forEach((e,i)=>{
-      if(type==='nc') rows.push([i+1, e.makmal, e.kampus, e.seksyen, e.teksSeksyen, e.penemuan, e.tindakan, e.status, e.tarikhSasaran||'-', e.adaGambar?'Ya':'Tiada']);
-      else if(type==='ofi') rows.push([i+1, e.makmal, e.kampus, e.seksyen, e.teksSeksyen, e.cadangan, e.adaGambar?'Ya':'Tiada']);
+      if(type==='nc') rows.push([i+1, e.makmal, e.kampus, e.seksyen, e.teksSeksyen, e.penemuan, e.tindakan, e.status, e.tarikhSasaran||'-']);
+      else if(type==='ofi') rows.push([i+1, e.makmal, e.kampus, e.seksyen, e.teksSeksyen, e.cadangan]);
       else rows.push([i+1, e.makmal, e.kampus, e.auditor, fmtDate(e.tarikh), e.seksyen, e.teksSeksyen, e.catatan||'-']);
     });
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = type==='nc'
-      ? [{wch:5},{wch:22},{wch:15},{wch:8},{wch:32},{wch:30},{wch:30},{wch:13},{wch:13},{wch:9}]
-      : type==='ofi' ? [{wch:5},{wch:24},{wch:16},{wch:8},{wch:36},{wch:42},{wch:10}]
+      ? [{wch:5},{wch:22},{wch:15},{wch:8},{wch:32},{wch:30},{wch:30},{wch:13},{wch:13}]
+      : type==='ofi' ? [{wch:5},{wch:24},{wch:16},{wch:8},{wch:36},{wch:42}]
       : [{wch:5},{wch:22},{wch:15},{wch:18},{wch:14},{wch:8},{wch:34},{wch:26}];
     XLSX.utils.book_append_sheet(wb, ws, `Laporan ${fileTag}`);
     XLSX.writeFile(wb, `Laporan_${fileTag}_${scopeLabel.replace(/\s+/g,'_')}.xlsx`);
@@ -1630,14 +1629,12 @@ function generateNcOfiReport(){
       <td>${e.penemuan||'-'}</td><td>${e.tindakan||'-'}</td>
       <td class="c" style="color:${ncStatusColor(e.status)};font-weight:bold;">${e.status}</td>
       <td class="c">${e.tarikhSasaran||'-'}</td>
-      <td class="c">${e.adaGambar?'Ya':'-'}</td>
     </tr>`;
     if(type==='ofi') return `
     <tr>
       <td class="c">${i+1}</td><td>${e.makmal}</td><td>${e.kampus}</td>
       <td class="c">${e.seksyen}</td><td>${e.teksSeksyen}</td>
       <td>${e.cadangan||'-'}</td>
-      <td class="c">${e.adaGambar?'Ya':'-'}</td>
     </tr>`;
     return `
     <tr>
@@ -1646,8 +1643,8 @@ function generateNcOfiReport(){
     </tr>`;
   }).join('');
 
-  const theadNC = `<tr><th class="c">Bil</th><th>Makmal</th><th>Kampus</th><th class="c">Seksyen</th><th>Item Seksyen</th><th>Perincian Penemuan & Lokasi</th><th>Cadangan Tindakan Pembetulan</th><th class="c">Status</th><th class="c">Tarikh Sasaran</th><th class="c">Gambar</th></tr>`;
-  const theadOFI = `<tr><th class="c">Bil</th><th>Makmal</th><th>Kampus</th><th class="c">Seksyen</th><th>Item Seksyen</th><th>Cadangan Penambahbaikan</th><th class="c">Gambar</th></tr>`;
+  const theadNC = `<tr><th class="c">Bil</th><th>Makmal</th><th>Kampus</th><th class="c">Seksyen</th><th>Item Seksyen</th><th>Perincian Penemuan & Lokasi</th><th>Cadangan Tindakan Pembetulan</th><th class="c">Status</th><th class="c">Tarikh Sasaran</th></tr>`;
+  const theadOFI = `<tr><th class="c">Bil</th><th>Makmal</th><th>Kampus</th><th class="c">Seksyen</th><th>Item Seksyen</th><th>Cadangan Penambahbaikan</th></tr>`;
   const theadKrit = `<tr><th class="c">Bil</th><th>Makmal</th><th>Kampus</th><th>Auditor</th><th>Tarikh Audit</th><th class="c">Kod</th><th>Item Kritikal Gagal (Skor 0)</th><th>Catatan</th></tr>`;
   const thead = type==='nc'?theadNC : type==='ofi'?theadOFI : theadKrit;
 
@@ -2350,7 +2347,6 @@ function renderBorang2(){
           <div class="nc-num">NC — Bil ${i+1} · Seksyen ${n.seksyen}</div>
           <span class="badge ${ncStatusBadge(n.status)}">${n.status||'Belum Ditutup'}</span>
         </div>
-        ${n.gambar?`<img class="photo-thumb" src="${n.gambar}">`:''}
         <div style="margin-top:8px;"><b>Penemuan & Lokasi:</b> ${n.penemuan||'-'}</div>
         <div><b>Cadangan Tindakan:</b> ${n.tindakan||'-'}</div>
         ${n.tarikhSasaran?`<div class="stat-note">Tarikh Sasaran: ${n.tarikhSasaran}</div>`:''}
@@ -2369,12 +2365,7 @@ function renderBorang2(){
         </div>
         <div class="field">
           <label class="field-label">Gambar</label>
-          <label class="photo-drop">
-            📷 Klik untuk muat naik gambar penemuan
-            <input type="file" accept="image/*" style="display:none" onchange="b2NCPhoto(${idx},this)">
-          </label>
-          ${item.gambarUploading ? `<div class="stat-note">⏳ Memuat naik gambar ke Google Drive...</div>` : ''}
-          ${item.gambar?`<img class="photo-thumb" src="${item.gambar}">`:''}
+          <div class="callout" style="margin-bottom:0;font-size:12px;">🖼️ Ruang gambar disediakan dalam dokumen Word/Excel yang dijana nanti — sisip gambar secara manual selepas muat turun.</div>
         </div>
         <div class="field">
           <label class="field-label">Perincian Penemuan & Lokasi</label>
@@ -2406,7 +2397,6 @@ function renderBorang2(){
     ${audit.ofi.length ? audit.ofi.map((o,i)=>`
       <div class="nc-card">
         <div class="nc-num" style="margin-bottom:8px;">OFI — Bil ${i+1} · Seksyen ${o.seksyen}</div>
-        ${o.gambar?`<img class="photo-thumb" src="${o.gambar}">`:''}
         <div style="margin-top:8px;">${o.cadangan||'-'}</div>
       </div>`).join('') : `<div class="empty">Tiada OFI direkodkan.</div>`}
   ` : `
@@ -2423,12 +2413,7 @@ function renderBorang2(){
         </div>
         <div class="field">
           <label class="field-label">Gambar</label>
-          <label class="photo-drop">
-            📷 Klik untuk muat naik gambar
-            <input type="file" accept="image/*" style="display:none" onchange="b2OFIPhoto(${idx},this)">
-          </label>
-          ${item.gambarUploading ? `<div class="stat-note">⏳ Memuat naik gambar ke Google Drive...</div>` : ''}
-          ${item.gambar?`<img class="photo-thumb" src="${item.gambar}">`:''}
+          <div class="callout" style="margin-bottom:0;font-size:12px;">🖼️ Ruang gambar disediakan dalam dokumen Word/Excel yang dijana nanti — sisip gambar secara manual selepas muat turun.</div>
         </div>
         <div class="field" style="margin-bottom:0;">
           <label class="field-label">Cadangan Penambahbaikan (Amalan Terbaik)</label>
@@ -2473,56 +2458,14 @@ function b2AddNC(){ b2.nc.push({seksyen:'A1',gambar:null,penemuan:'',tindakan:''
 function b2RemoveNC(idx){ b2.nc.splice(idx,1); renderBorang2(); }
 function b2AddOFI(){ b2.ofi.push({seksyen:'A1',gambar:null,cadangan:''}); renderBorang2(); }
 function b2RemoveOFI(idx){ b2.ofi.splice(idx,1); renderBorang2(); }
-async function b2NCPhoto(idx, input){
-  const f = input.files[0]; if(!f) return;
-  const r = new FileReader();
-  r.onload = async e => {
-    b2.nc[idx].gambar = e.target.result; // paparan segera (base64 sementara) sambil muat naik
-    b2.nc[idx].gambarUploading = true;
-    renderBorang2();
-    const res = await apiCall('uploadImage', { dataUrl: e.target.result, filename: f.name });
-    b2.nc[idx].gambarUploading = false;
-    if(res.ok){
-      b2.nc[idx].gambar = res.url; // gantikan dengan pautan Google Drive kekal
-      toast('Gambar dimuat naik ke Google Drive.');
-    } else {
-      b2.nc[idx].gambar = null;
-      showFatalError(new Error(res.error || 'Ralat tidak diketahui'), 'b2NCPhoto (muat naik gambar NC)');
-      return; // elak renderBorang2() timpa skrin ralat
-    }
-    renderBorang2();
-  };
-  r.readAsDataURL(f);
-}
-async function b2OFIPhoto(idx, input){
-  const f = input.files[0]; if(!f) return;
-  const r = new FileReader();
-  r.onload = async e => {
-    b2.ofi[idx].gambar = e.target.result;
-    b2.ofi[idx].gambarUploading = true;
-    renderBorang2();
-    const res = await apiCall('uploadImage', { dataUrl: e.target.result, filename: f.name });
-    b2.ofi[idx].gambarUploading = false;
-    if(res.ok){
-      b2.ofi[idx].gambar = res.url;
-      toast('Gambar dimuat naik ke Google Drive.');
-    } else {
-      b2.ofi[idx].gambar = null;
-      showFatalError(new Error(res.error || 'Ralat tidak diketahui'), 'b2OFIPhoto (muat naik gambar OFI)');
-      return; // elak renderBorang2() timpa skrin ralat
-    }
-    renderBorang2();
-  };
-  r.readAsDataURL(f);
-}
 async function b2Submit(){
   const audit = STATE.audits.find(a=>String(a.id)===String(b2.auditId));
   if(!audit){ toast('Pilih makmal dahulu.'); return; }
   if(!isAdmin() && audit.emailAuditor !== currentUser.email){ toast('Anda tidak dibenarkan mengubah laporan makmal ini.'); return; }
   const sess = STATE.sessions.find(x=>x.id===audit.sesiId);
   if(!isAdmin() && sess && sess.status==='Selesai'){ toast('Sesi audit ini telah ditutup — laporan tidak boleh diubah.'); return; }
-  const nc = b2.nc.filter(n=>n.penemuan || n.tindakan || n.gambar);
-  const ofi = b2.ofi.filter(o=>o.cadangan || o.gambar);
+  const nc = b2.nc.filter(n=>n.penemuan || n.tindakan);
+  const ofi = b2.ofi.filter(o=>o.cadangan);
   const wasPending = audit.statusRekod === 'MenungguBorang2';
   const newStatus = wasPending ? 'Selesai' : audit.statusRekod; // "terima" Borang 2 = sahkan audit sepenuhnya selesai
   const res = await apiCall('saveAudit', { audit: {...audit, nc, ofi, statusRekod:newStatus} });
@@ -2536,35 +2479,6 @@ async function b2Submit(){
 }
 
 /* ============ JANA DOKUMEN ============ */
-/* ============ BANTUAN GAMBAR (untuk janaan Excel/Word) ============ */
-function imgMimeAndBase64(dataUrl){
-  if(!dataUrl || !dataUrl.startsWith('data:') || dataUrl.indexOf(',')===-1) return null; // pautan Google Drive bukan data: URL - tak boleh terbenam terus
-  const meta = dataUrl.slice(5, dataUrl.indexOf(';')); // "image/png"
-  const base64 = dataUrl.slice(dataUrl.indexOf(',')+1);
-  return {mime: meta, base64};
-}
-function imgExtForExcel(dataUrl){
-  const info = imgMimeAndBase64(dataUrl);
-  if(!info) return 'png';
-  if(info.mime.includes('jpeg') || info.mime.includes('jpg')) return 'jpeg';
-  if(info.mime.includes('gif')) return 'gif';
-  return 'png';
-}
-function buildMhtmlDocument(htmlBody, images){
-  // images: [{cid, dataUrl}] - membina fail MHTML (multipart/related) supaya Word memaparkan gambar terbenam sebenar
-  const boundary = 'mhtml-osh-' + Date.now();
-  let out = `MIME-Version: 1.0\r\nContent-Type: multipart/related; boundary="${boundary}"\r\n\r\n`;
-  out += `--${boundary}\r\nContent-Type: text/html; charset="utf-8"\r\nContent-Location: report.html\r\n\r\n`;
-  out += htmlBody + '\r\n\r\n';
-  images.forEach(img=>{
-    const info = imgMimeAndBase64(img.dataUrl);
-    if(!info) return;
-    out += `--${boundary}\r\nContent-Type: ${info.mime}\r\nContent-Transfer-Encoding: base64\r\nContent-ID: <${img.cid}>\r\nContent-Location: ${img.cid}\r\n\r\n`;
-    out += (info.base64.match(/.{1,76}/g)||[info.base64]).join('\r\n') + '\r\n\r\n';
-  });
-  out += `--${boundary}--`;
-  return out;
-}
 
 async function generateDocument(id, format){
   format = format || 'word';
@@ -2574,7 +2488,7 @@ async function generateDocument(id, format){
   const crit = STATE.admin.criticalItems.filter(c=>a.items[c].skor==='0');
 
   if(format==='excel'){
-    toast('Menjana fail Excel dengan gambar... sila tunggu sebentar.');
+    toast('Menjana fail Excel... sila tunggu sebentar.');
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Sistem Audit OSH FTKE';
 
@@ -2599,40 +2513,18 @@ async function generateDocument(id, format){
 
     const wsNC = wb.addWorksheet('Borang 2 - NC');
     wsNC.columns = [{width:5},{width:10},{width:34},{width:34},{width:34},{width:26}];
-    wsNC.addRow(['Bil','Seksyen','Item Seksyen','Perincian Penemuan & Lokasi','Cadangan Tindakan Pembetulan','Gambar']).font = {bold:true};
+    wsNC.addRow(['Bil','Seksyen','Item Seksyen','Perincian Penemuan & Lokasi','Cadangan Tindakan Pembetulan','Gambar (sisip manual)']).font = {bold:true};
     a.nc.forEach((n,i)=>{
-      const isEmbeddable = n.gambar && n.gambar.startsWith('data:');
-      const isLink = n.gambar && !isEmbeddable;
-      const row = wsNC.addRow([i+1, n.seksyen, itemText(n.seksyen), n.penemuan||'', n.tindakan||'', isLink ? '' : (n.gambar?'':'(tiada gambar)')]);
-      const rowNum = row.number;
-      if(isEmbeddable){
-        wsNC.getRow(rowNum).height = 90;
-        const imgId = wb.addImage({base64: n.gambar, extension: imgExtForExcel(n.gambar)});
-        wsNC.addImage(imgId, { tl:{col:5, row:rowNum-1}, ext:{width:150, height:110} });
-      } else if(isLink){
-        const cell = wsNC.getCell(rowNum, 6);
-        cell.value = { text: '📷 Lihat Gambar', hyperlink: n.gambar };
-        cell.font = { color: {argb:'FF2C5C86'}, underline: true };
-      }
+      const row = wsNC.addRow([i+1, n.seksyen, itemText(n.seksyen), n.penemuan||'', n.tindakan||'', '']);
+      wsNC.getRow(row.number).height = 90; // ruang kosong tinggi - sedia untuk sisip gambar manual (klik sel > Insert > Picture)
     });
 
     const wsOFI = wb.addWorksheet('Borang 2 - OFI');
     wsOFI.columns = [{width:5},{width:10},{width:40},{width:44},{width:26}];
-    wsOFI.addRow(['Bil','Seksyen','Item Seksyen','Cadangan Penambahbaikan','Gambar']).font = {bold:true};
+    wsOFI.addRow(['Bil','Seksyen','Item Seksyen','Cadangan Penambahbaikan','Gambar (sisip manual)']).font = {bold:true};
     a.ofi.forEach((o,i)=>{
-      const isEmbeddable = o.gambar && o.gambar.startsWith('data:');
-      const isLink = o.gambar && !isEmbeddable;
-      const row = wsOFI.addRow([i+1, o.seksyen, itemText(o.seksyen), o.cadangan||'', isLink ? '' : (o.gambar?'':'(tiada gambar)')]);
-      const rowNum = row.number;
-      if(isEmbeddable){
-        wsOFI.getRow(rowNum).height = 90;
-        const imgId = wb.addImage({base64: o.gambar, extension: imgExtForExcel(o.gambar)});
-        wsOFI.addImage(imgId, { tl:{col:4, row:rowNum-1}, ext:{width:150, height:110} });
-      } else if(isLink){
-        const cell = wsOFI.getCell(rowNum, 5);
-        cell.value = { text: '📷 Lihat Gambar', hyperlink: o.gambar };
-        cell.font = { color: {argb:'FF2C5C86'}, underline: true };
-      }
+      const row = wsOFI.addRow([i+1, o.seksyen, itemText(o.seksyen), o.cadangan||'', '']);
+      wsOFI.getRow(row.number).height = 90;
     });
 
     const buf = await wb.xlsx.writeBuffer();
@@ -2644,7 +2536,7 @@ async function generateDocument(id, format){
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast('Fail Excel dijana dengan gambar terbenam (4 helaian).');
+    toast('Fail Excel dijana (4 helaian) — ruang gambar sedia untuk sisip manual.');
     return;
   }
 
@@ -2656,17 +2548,18 @@ async function generateDocument(id, format){
     return `<h3>${sec.code}. ${sec.title}</h3>
       <table><thead><tr><th>Kod</th><th>Item Audit</th><th>Skor</th><th>Catatan</th></tr></thead><tbody>${rows}</tbody></table>`;
   }).join('');
+  const gambarPlaceholder = `<div style="border:2px dashed #999;width:260px;height:130px;display:flex;align-items:center;justify-content:center;color:#888;font-size:11px;text-align:center;margin:6px 0;background:#fafafa;">🖼️ Ruang Gambar<br>(sisip secara manual)</div>`;
   const ncHtml = a.nc.length ? a.nc.map((n,i)=>`
     <div class="ncblock">
       <b>NC ${i+1} — Seksyen ${n.seksyen} (${itemText(n.seksyen)})</b>
-      ${n.gambar?`<div><img src="${n.gambar}" style="max-width:260px;border:1px solid #ccc;margin:6px 0;"></div>`:''}
+      ${gambarPlaceholder}
       <div><i>Penemuan & Lokasi:</i> ${n.penemuan||'-'}</div>
       <div><i>Cadangan Tindakan Pembetulan:</i> ${n.tindakan||'-'}</div>
     </div>`).join('') : '<p>Tiada NC direkodkan.</p>';
   const ofiHtml = a.ofi.length ? a.ofi.map((o,i)=>`
     <div class="ncblock">
       <b>OFI ${i+1} — Seksyen ${o.seksyen} (${itemText(o.seksyen)})</b>
-      ${o.gambar?`<div><img src="${o.gambar}" style="max-width:260px;border:1px solid #ccc;margin:6px 0;"></div>`:''}
+      ${gambarPlaceholder}
       <div>${o.cadangan||'-'}</div>
     </div>`).join('') : '<p>Tiada OFI direkodkan.</p>';
 
@@ -2708,73 +2601,9 @@ async function generateDocument(id, format){
   </body></html>`;
 
   if(format==='word'){
-    // Word (.doc melalui MHTML) tidak memaparkan gambar base64 dalam <img src="data:..."> dengan boleh dipercayai.
-    // Jadi bina versi HTML berasingan yang rujuk gambar melalui cid: (rujukan MIME terbenam) - cara betul Word terima gambar terbenam.
-    // Gambar yang kini disimpan sebagai pautan Google Drive (bukan data: base64) dipaparkan sebagai pautan boleh klik sahaja.
-    const wordImages = [];
-    let cidCounter = 0;
-    function registerImg(dataUrl){
-      const cid = 'img'+(cidCounter++)+'@osh.local';
-      wordImages.push({cid, dataUrl});
-      return 'cid:'+cid;
-    }
-    function imgOrLinkHtml(gambar){
-      if(!gambar) return '';
-      if(gambar.startsWith('data:')) return `<div><img src="${registerImg(gambar)}" style="max-width:260px;border:1px solid #ccc;margin:6px 0;"></div>`;
-      return `<div><a href="${gambar}">📷 Lihat Gambar (Google Drive)</a></div>`;
-    }
-    const ncHtmlWord = a.nc.length ? a.nc.map((n,i)=>`
-      <div class="ncblock">
-        <b>NC ${i+1} — Seksyen ${n.seksyen} (${itemText(n.seksyen)})</b>
-        ${imgOrLinkHtml(n.gambar)}
-        <div><i>Penemuan & Lokasi:</i> ${n.penemuan||'-'}</div>
-        <div><i>Cadangan Tindakan Pembetulan:</i> ${n.tindakan||'-'}</div>
-      </div>`).join('') : '<p>Tiada NC direkodkan.</p>';
-    const ofiHtmlWord = a.ofi.length ? a.ofi.map((o,i)=>`
-      <div class="ncblock">
-        <b>OFI ${i+1} — Seksyen ${o.seksyen} (${itemText(o.seksyen)})</b>
-        ${imgOrLinkHtml(o.gambar)}
-        <div>${o.cadangan||'-'}</div>
-      </div>`).join('') : '<p>Tiada OFI direkodkan.</p>';
-
-    const docWord = `<!DOCTYPE html><html lang="ms"><head><meta charset="UTF-8"><title>Laporan Audit — ${a.namaMakmal}</title>
-    <style>
-      body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;max-width:820px;margin:30px auto;padding:0 20px;line-height:1.5;}
-      h1{font-size:19px;text-align:center;margin-bottom:2px;}
-      h2{font-size:15px;border-bottom:2px solid #10243E;padding-bottom:4px;margin-top:28px;}
-      h3{font-size:13px;color:#2C5C86;margin:16px 0 6px;}
-      table{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:10px;}
-      th,td{border:1px solid #ccc;padding:5px 7px;text-align:left;}
-      td.c,th.c{text-align:center;width:50px;}
-      .meta{font-size:12.5px;margin:14px 0;}
-      .meta div{margin-bottom:3px;}
-      .status{display:inline-block;padding:3px 10px;border-radius:20px;font-weight:bold;font-size:12px;}
-      .ncblock{border:1px solid #ddd;border-radius:6px;padding:10px 12px;margin-bottom:10px;font-size:12.5px;}
-      .sig{margin-top:40px;display:flex;justify-content:space-between;font-size:12.5px;}
-    </style></head><body>
-    <h1>LAPORAN AUDIT DALAMAN OSH — MAKMAL FTKE</h1>
-    <p style="text-align:center;color:#555;font-size:12px;">Borang 1 (Checklist) &amp; Borang 2 (Laporan NC/OFI) — Dijana oleh Sistem Audit OSH FTKE</p>
-    <div class="meta">
-      <div><b>Kampus:</b> ${a.kampus} &nbsp; | &nbsp; <b>Makmal:</b> ${a.namaMakmal} &nbsp; | &nbsp; <b>Lokasi:</b> ${a.lokasi}</div>
-      <div><b>Tarikh & Masa Audit:</b> ${fmtDate(a.tarikh)} &nbsp; | &nbsp; <b>Auditor:</b> ${a.auditor} &nbsp; | &nbsp; <b>PIC Makmal:</b> ${a.pic}</div>
-      <div><b>Skor:</b> ${s.sum}/${s.max} (${s.pct.toFixed(1)}%) &nbsp; | &nbsp; <b>Status:</b> ${s.status}</div>
-      ${crit.length? `<div style="color:#B23A2E;"><b>⚠ KKP Kritikal:</b> ${crit.map(c=>c+' — '+itemText(c)).join('; ')}</div>` : ''}
-    </div>
-    <h2>BORANG 1 — CHECKLIST AUDIT</h2>
-    ${sectionsHtml}
-    <h2>BORANG 2 — BAHAGIAN 2: LAPORAN NC</h2>
-    ${ncHtmlWord}
-    <h2>BORANG 2 — BAHAGIAN 3: CADANGAN OFI</h2>
-    ${ofiHtmlWord}
-    <h2>PENGESAHAN</h2>
-    <div class="sig">
-      <div>Disediakan oleh (Auditor):<br><br>_____________________<br>${a.auditor}</div>
-      <div>Diterima & Diakui oleh (PIC Makmal):<br><br>_____________________<br>${a.pic}</div>
-    </div>
-    </body></html>`;
-
-    const mhtml = buildMhtmlDocument(docWord, wordImages);
-    const blob = new Blob([mhtml], {type:'application/msword'});
+    // Tiada lagi gambar sebenar untuk dibenamkan (ciri muat naik dibuang) - guna terus HTML
+    // yang sama (dengan kotak placeholder ruang gambar) sebagai .doc, tanpa perlu MHTML/cid lagi.
+    const blob = new Blob(['\ufeff'+doc], {type:'application/msword'});
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -2782,7 +2611,7 @@ async function generateDocument(id, format){
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast(wordImages.length ? `Dokumen Word dijana dengan ${wordImages.length} gambar terbenam.` : 'Dokumen Word dijana & dimuat turun.');
+    toast('Dokumen Word dijana — ruang gambar sedia untuk sisip manual.');
     return;
   }
 
