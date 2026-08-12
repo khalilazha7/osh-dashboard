@@ -329,15 +329,24 @@ async function apiCall(action, data){
     toast('⚠ Backend belum disambung. Sila tetapkan CONFIG.API_URL dalam kod (rujuk arahan Code.gs).');
     throw new Error('API_URL belum ditetapkan');
   }
+  // POST silang-domain ke Google Apps Script kadang tak boleh dipercayai (isu redirect/CORS di sisi Google).
+  // GET pula terbukti sentiasa berfungsi. Jadi guna GET untuk semua tindakan KECUALI yang bawa data besar
+  // (gambar base64, atau audit dengan banyak catatan panjang) yang tak muat dalam had panjang URL GET.
+  const payloadStr = JSON.stringify({ action, ...data });
+  const needsPost = (action === 'uploadImage') || (encodeURIComponent(payloadStr).length > 6000);
   let res, rawText;
   try{
-    res = await fetch(CONFIG.API_URL, {
-      method: 'POST',
-      // guna text/plain supaya browser tidak hantar 'preflight' OPTIONS request
-      // (Google Apps Script Web App tidak layan preflight dengan baik)
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action, ...data })
-    });
+    if(needsPost){
+      res = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        // guna text/plain supaya browser tidak hantar 'preflight' OPTIONS request
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: payloadStr
+      });
+    } else {
+      const payload = encodeURIComponent(payloadStr);
+      res = await fetch(CONFIG.API_URL + '?payload=' + payload, { method: 'GET' });
+    }
   }catch(networkErr){
     // Ini sebenarnya GAGAL SEPENUHNYA hubungi server - selalunya tanda isu CORS/rangkaian
     const msg = `Gagal hubungi backend sepenuhnya (kemungkinan CORS/rangkaian). Butiran: ${networkErr.message}`;
