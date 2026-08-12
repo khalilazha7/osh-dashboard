@@ -1065,20 +1065,22 @@ function renderDashboard(){
     const s = computeScore(a.items);
     const crit = hasCriticalFail(a.items);
     const isDraft = a.statusRekod === 'Draf';
+    const isPending = a.statusRekod === 'MenungguBorang2';
     const sesi = sessionName(a.sesiId);
-    const searchBlob = `${a.namaMakmal} ${a.kampus} ${a.lokasi} ${a.auditor} ${s.status} ${sesi} ${isDraft?'draf':''}`.toLowerCase();
-    const rowClick = isDraft ? `b1LoadForEdit(${a.id})` : `viewAuditDetail(${a.id})`;
+    const searchBlob = `${a.namaMakmal} ${a.kampus} ${a.lokasi} ${a.auditor} ${s.status} ${sesi} ${isDraft?'draf':''} ${isPending?'menunggu':''}`.toLowerCase();
+    const rowClick = isDraft ? `b1LoadForEdit(${a.id})` : isPending ? `b2GoTo(${a.id})` : `viewAuditDetail(${a.id})`;
     return `<tr class="clickable" data-search="${searchBlob}" onclick="${rowClick}">
       <td>${a.namaMakmal}<div style="font-size:11.5px;color:var(--text-mute)">${a.lokasi} · ${sesi}</div></td>
       <td><span class="badge grey">${a.kampus.replace('Kampus ','')}</span></td>
       <td class="mono">${fmtDate(a.tarikh)}</td>
       <td class="mono">${isDraft ? '—' : s.pct.toFixed(1)+'%'}</td>
-      <td>${isDraft ? '<span class="badge amber">✎ DRAF — klik sambung</span>' : `<span class="badge ${s.cls}">${s.status}</span>`}</td>
+      <td>${isDraft ? '<span class="badge amber">✎ DRAF — klik sambung</span>' : isPending ? '<span class="badge amber">⏳ Menunggu Borang 2</span>' : `<span class="badge ${s.cls}">${s.status}</span>`}</td>
       <td>${isDraft ? '-' : (crit? '<span class="badge red">● Kritikal</span>':'<span class="badge green">Selamat</span>')}</td>
     </tr>`;
   }).join('');
 
   const draftCount = all.filter(a=>a.statusRekod==='Draf').length;
+  const pendingCount = all.filter(a=>a.statusRekod==='MenungguBorang2').length;
   const activeSession = getActiveSession();
 
   document.getElementById('main').innerHTML = `
@@ -1127,6 +1129,19 @@ function renderDashboard(){
             <span class="stat-note" style="margin-left:6px;">${d.kampus} · ${d.lokasi||'-'} · ${sessionName(d.sesiId)}</span>
           </div>
           <button class="btn sm primary" onclick="b1LoadForEdit(${d.id})">Sambung Isi →</button>
+        </div>`).join('')}
+    </div>` : ''}
+
+    ${pendingCount>0 ? `
+    <div class="card" style="border:1.5px solid var(--amber);margin-bottom:20px;">
+      <div style="font-weight:700;color:var(--amber);margin-bottom:10px;">⏳ Anda ada ${pendingCount} audit BELUM SELESAI — Borang 1 lengkap, tapi Borang 2 belum disahkan:</div>
+      ${all.filter(a=>a.statusRekod==='MenungguBorang2').map(d=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid var(--line-soft);">
+          <div>
+            <b>${d.namaMakmal}</b>
+            <span class="stat-note" style="margin-left:6px;">${d.kampus} · ${d.lokasi||'-'} · ${sessionName(d.sesiId)}</span>
+          </div>
+          <button class="btn sm primary" onclick="b2GoTo(${d.id})">Sahkan Borang 2 →</button>
         </div>`).join('')}
     </div>` : ''}
 
@@ -1981,6 +1996,14 @@ function freshB1(){
     items: blankItems()
   };
 }
+function b2GoTo(id){
+  const a = STATE.audits.find(x=>x.id===id);
+  if(!a) return;
+  if(!isAdmin() && a.emailAuditor !== currentUser.email){ toast('Rekod ini bukan milik anda.'); return; }
+  b2 = freshB2();
+  b2.auditId = id;
+  nav('borang2');
+}
 function b1LoadForEdit(id){
   const a = STATE.audits.find(x=>String(x.id)===String(id));
   if(!a) return;
@@ -2161,16 +2184,19 @@ async function b1Submit(){
   if(countUnanswered(b1.items) > 0){
     toast('Sila lengkapkan semua item sebelum menghantar. Guna "Simpan Draf" jika belum bersedia.'); return;
   }
-  const payload = {
-    kampus:b1.general.kampus, namaMakmal:b1.general.namaMakmal, lokasi:b1.general.lokasi,
-    tarikh:b1.general.tarikh || new Date().toISOString(), auditor:b1.general.auditor,
-    emailAuditor: currentUser.email, pic:b1.general.pic,
-    items: b1.items, statusRekod:'Selesai'
-  };
-  let id, isFreshCompletion;
+  let id, isFreshCompletion, targetStatus;
   if(b1.editingId){
     const existing = STATE.audits.find(a=>a.id===b1.editingId);
-    isFreshCompletion = existing && existing.statusRekod==='Draf';
+    isFreshCompletion = existing && (existing.statusRekod==='Draf' || existing.statusRekod==='MenungguBorang2');
+    // Kekalkan status "Selesai" jika mengedit rekod yang memang sudah disahkan sepenuhnya sebelum ini;
+    // sebaliknya (draf/baru), tandakan "MenungguBorang2" - BUKAN "Selesai" - sehingga Borang 2 disahkan.
+    targetStatus = (existing && existing.statusRekod==='Selesai') ? 'Selesai' : 'MenungguBorang2';
+    const payload = {
+      kampus:b1.general.kampus, namaMakmal:b1.general.namaMakmal, lokasi:b1.general.lokasi,
+      tarikh:b1.general.tarikh || new Date().toISOString(), auditor:b1.general.auditor,
+      emailAuditor: currentUser.email, pic:b1.general.pic,
+      items: b1.items, statusRekod: targetStatus
+    };
     id = b1.editingId;
     const merged = {...existing, ...payload, nc: existing.nc||[], ofi: existing.ofi||[]};
     const res = await apiCall('saveAudit', { audit: {...merged, id} });
@@ -2178,20 +2204,26 @@ async function b1Submit(){
     const idx = STATE.audits.findIndex(a=>a.id===id);
     if(idx>-1) STATE.audits[idx] = merged;
   } else {
+    const payload = {
+      kampus:b1.general.kampus, namaMakmal:b1.general.namaMakmal, lokasi:b1.general.lokasi,
+      tarikh:b1.general.tarikh || new Date().toISOString(), auditor:b1.general.auditor,
+      emailAuditor: currentUser.email, pic:b1.general.pic,
+      items: b1.items, statusRekod:'MenungguBorang2' // BUKAN "Selesai" - tunggu pengesahan Borang 2 dahulu
+    };
     const res = await apiCall('saveAudit', { audit: {sesiId:STATE.activeSessionId, nc:[], ofi:[], ...payload} });
     if(!res.ok) return;
     id = res.id;
     STATE.audits.push({id, sesiId:STATE.activeSessionId, nc:[], ofi:[], ...payload});
     isFreshCompletion = true;
   }
-  toast(isFreshCompletion ? `Borang 1 disimpan. Teruskan ke Borang 2 untuk laporkan NC/OFI (jika ada).` : `Pemarkahan "${b1.general.namaMakmal}" dikemas kini.`);
+  toast(isFreshCompletion ? `Borang 1 disimpan. Sila lengkapkan & sahkan Borang 2 untuk selesaikan audit ini.` : `Pemarkahan "${b1.general.namaMakmal}" dikemas kini.`);
   b1 = freshB1();
   if(isFreshCompletion){
     b2 = freshB2();
     b2.auditId = id; // pra-pilih audit - alur automatik Borang 1 -> Borang 2 (audit baharu/draf yang baru siap sahaja)
     nav('borang2');
   } else {
-    nav('dashboard'); // edit rekod sedia ada - tak perlu paksa semula ke Borang 2
+    nav('dashboard'); // edit rekod "Selesai" sedia ada - tak perlu paksa semula ke Borang 2
   }
 }
 
@@ -2207,9 +2239,9 @@ function sectionOptions(selected){
 }
 function renderBorang2(){
   if(!b2) b2 = freshB2();
-  // Senarai makmal yang BOLEH dipilih pengguna ini: hanya audit "Selesai" milik sendiri (Admin: semua)
+  // Senarai makmal yang BOLEH dipilih pengguna ini: audit "Selesai" ATAU "MenungguBorang2" milik sendiri (Admin: semua)
   const availableAudits = STATE.audits.filter(a=>{
-    if(a.statusRekod !== 'Selesai') return false;
+    if(a.statusRekod !== 'Selesai' && a.statusRekod !== 'MenungguBorang2') return false;
     if(isAdmin()) return true;
     return a.emailAuditor === currentUser.email;
   });
@@ -2222,6 +2254,7 @@ function renderBorang2(){
   const sess = audit ? STATE.sessions.find(x=>x.id===audit.sesiId) : null;
   const sessionClosed = sess && sess.status==='Selesai';
   const readOnly = sessionClosed && !isAdmin();
+  const isPending = audit && audit.statusRekod === 'MenungguBorang2';
 
   const generalBlock = `
     <div class="section-title" style="margin-top:0;">1. Maklumat Am & Rumusan Keputusan <div class="rule"></div></div>
@@ -2230,9 +2263,9 @@ function renderBorang2(){
         <label class="field-label">Pilih Makmal (ditarik dari Borang 1 anda sahaja)</label>
         <select onchange="b2.auditId=this.value; renderBorang2()">
           <option value="">— Pilih makmal —</option>
-          ${availableAudits.map(a=>`<option value="${a.id}" ${String(a.id)===String(b2.auditId)?'selected':''}>${a.namaMakmal} — ${a.kampus} (${fmtDate(a.tarikh)})</option>`).join('')}
+          ${availableAudits.map(a=>`<option value="${a.id}" ${String(a.id)===String(b2.auditId)?'selected':''}>${a.namaMakmal} — ${a.kampus} (${fmtDate(a.tarikh)}) ${a.statusRekod==='MenungguBorang2'?'⏳':''}</option>`).join('')}
         </select>
-        ${!availableAudits.length ? `<div class="stat-note" style="margin-top:6px;">Anda belum ada audit Borang 1 yang "Selesai". Lengkapkan Borang 1 dahulu sebelum boleh melapor NC/OFI.</div>` : ''}
+        ${!availableAudits.length ? `<div class="stat-note" style="margin-top:6px;">Anda belum ada audit Borang 1 yang lengkap. Lengkapkan Borang 1 dahulu sebelum boleh melapor NC/OFI.</div>` : ''}
       </div>
       ${audit ? `
       <div class="grid cols-2" style="margin-top:6px;">
@@ -2245,6 +2278,7 @@ function renderBorang2(){
         <div><div class="stat-label">Skor Keseluruhan (%)</div><div class="mono">${s.pct.toFixed(1)}%</div></div>
         <div><div class="stat-label">Status Pematuhan</div><div><span class="badge ${s.cls}">${s.status}</span></div></div>
       </div>
+      ${isPending ? `<div class="callout warn" style="margin-top:12px;">⏳ <b>Audit ini masih BELUM SELESAI.</b> Borang 1 telah lengkap, tetapi status akan kekal "Menunggu" sehingga saudara sahkan Borang 2 di bawah — walaupun tiada NCR/OFI untuk dilaporkan, tekan <b>"✓ Terima & Selesaikan Audit"</b> untuk tandakan selesai sepenuhnya.</div>` : ''}
       ${readOnly ? `<div class="callout" style="margin-top:12px;">🔒 Sesi audit ini telah ditandakan selesai — anda hanya boleh melihat laporan NC/OFI sedia ada, tidak boleh tambah/ubah lagi.</div>` : ''}
       ` : `<div class="empty">Pilih makmal untuk paparkan maklumat am (ditarik automatik daripada Borang 1).</div>`}
     </div>`;
@@ -2370,18 +2404,18 @@ function renderBorang2(){
     <div class="topline">
       <div>
         <h1 class="h1">Borang 2 · Laporan NC / OFI</h1>
-        <div class="h1-sub">${audit.namaMakmal} — ${audit.kampus}</div>
+        <div class="h1-sub">${audit.namaMakmal} — ${audit.kampus} ${isPending?'<span class="badge amber" style="margin-left:6px;">⏳ Belum Selesai</span>':''}</div>
       </div>
       <div style="display:flex;gap:8px;">
-        <button class="btn" onclick="nav('dashboard')">Langkau ke Dashboard</button>
-        ${readOnly ? '' : `<button class="btn primary" onclick="b2Submit()">✓ Simpan Laporan</button>`}
+        <button class="btn" onclick="${isPending? "toast('Audit ini kekal sebagai \\'Menunggu\\' sehingga anda sahkan Borang 2.'); nav('dashboard');" : "nav('dashboard')"}">${isPending?'Simpan & Sambung Kemudian':'Langkau ke Dashboard'}</button>
+        ${readOnly ? '' : `<button class="btn primary" onclick="b2Submit()">${isPending?'✓ Terima & Selesaikan Audit':'✓ Simpan Laporan'}</button>`}
       </div>
     </div>
     ${generalBlock}
     ${ncBlock}
     ${ofiBlock}
     ${confirmBlock}
-    ${readOnly ? '' : `<div style="margin-top:20px;"><button class="btn primary" onclick="b2Submit()">✓ Simpan Laporan NC/OFI</button></div>`}
+    ${readOnly ? '' : `<div style="margin-top:20px;"><button class="btn primary" onclick="b2Submit()">${isPending?'✓ Terima & Selesaikan Audit':'✓ Simpan Laporan NC/OFI'}</button></div>`}
   `;
 }
 function b2AddNC(){ b2.nc.push({seksyen:'A1',gambar:null,penemuan:'',tindakan:'',status:'Belum Ditutup',tarikhSasaran:''}); renderBorang2(); }
@@ -2436,11 +2470,14 @@ async function b2Submit(){
   if(!isAdmin() && sess && sess.status==='Selesai'){ toast('Sesi audit ini telah ditutup — laporan tidak boleh diubah.'); return; }
   const nc = b2.nc.filter(n=>n.penemuan || n.tindakan || n.gambar);
   const ofi = b2.ofi.filter(o=>o.cadangan || o.gambar);
-  const res = await apiCall('saveAudit', { audit: {...audit, nc, ofi} });
+  const wasPending = audit.statusRekod === 'MenungguBorang2';
+  const newStatus = wasPending ? 'Selesai' : audit.statusRekod; // "terima" Borang 2 = sahkan audit sepenuhnya selesai
+  const res = await apiCall('saveAudit', { audit: {...audit, nc, ofi, statusRekod:newStatus} });
   if(!res.ok) return;
   audit.nc = nc;
   audit.ofi = ofi;
-  toast(`Laporan NC/OFI untuk "${audit.namaMakmal}" disimpan.`);
+  audit.statusRekod = newStatus;
+  toast(wasPending ? `Audit "${audit.namaMakmal}" disahkan & ditandakan SELESAI.` : `Laporan NC/OFI untuk "${audit.namaMakmal}" disimpan.`);
   b2 = freshB2();
   nav('dashboard');
 }
