@@ -320,7 +320,7 @@
    3. Tampal URL tu di bawah, gantikan teks 'GANTIKAN_DENGAN_URL_APPS_SCRIPT'
    ============================================================ */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbxgehpPdX1PjUwsdyiPnPbY9pzvalEjCr1lBJReELDdDyxjLA-ANHMSoX45DnGQyziVmA/exec', // cth: https://script.google.com/macros/s/AKfycb.../exec
+  API_URL: 'https://script.google.com/macros/s/AKfycbxgehpPdX1PjUwsdyiPnPbY9pzvalEjCr1lBJReELDdDyxjLA-ANHMSoX45DnGQyziVmA/exec',
 };
 
 /* ============ SAMBUNGAN KE BACKEND (Google Apps Script) ============ */
@@ -744,6 +744,7 @@ function renderLogin(){
         <label class="field-label">Jawatan / Catatan (pilihan)</label>
         <textarea id="regAlasan" placeholder="cth. Pensyarah/Penyelia Makmal, ingin menjadi Auditor OSH"></textarea>
       </div>
+      <div id="regError" style="color:var(--red);font-size:12.5px;margin-top:10px;display:none;background:var(--red-bg);padding:9px 11px;border-radius:7px;"></div>
       <div style="display:flex;gap:8px;margin-top:14px;">
         <button class="btn" onclick="loginScreenMode='login'; renderLogin();">← Batal</button>
         <button class="btn primary" id="regSubmitBtn" onclick="submitRegistrationRequest()">Hantar Permohonan</button>
@@ -785,23 +786,35 @@ function renderLogin(){
   if(emailField) emailField.focus();
 }
 async function submitRegistrationRequest(){
+  const errBox = document.getElementById('regError');
+  errBox.style.display = 'none';
   const nama = document.getElementById('regNama').value.trim();
   const email = document.getElementById('regEmail').value.trim().toLowerCase();
   const password = document.getElementById('regPassword').value;
   const password2 = document.getElementById('regPassword2').value;
   const kampus = document.getElementById('regKampus').value;
   const alasan = document.getElementById('regAlasan').value.trim();
-  if(!nama || !email || !password){ toast('Sila isi nama, e-mel dan kata laluan.'); return; }
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Format e-mel tidak sah.'); return; }
-  if(password.length<6){ toast('Kata laluan mesti sekurang-kurangnya 6 aksara.'); return; }
-  if(password!==password2){ toast('Kata laluan dan sahkan kata laluan tidak sepadan.'); return; }
+  function showRegError(msg){ errBox.textContent = msg; errBox.style.display = 'block'; }
+  if(!nama || !email || !password){ showRegError('Sila isi nama, e-mel dan kata laluan.'); return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showRegError('Format e-mel tidak sah.'); return; }
+  if(password.length<6){ showRegError('Kata laluan mesti sekurang-kurangnya 6 aksara.'); return; }
+  if(password!==password2){ showRegError('Kata laluan dan sahkan kata laluan tidak sepadan.'); return; }
   const btn = document.getElementById('regSubmitBtn');
   btn.disabled = true; btn.textContent = 'Menghantar...';
-  const res = await apiCall('register', { nama, email, password, kampus, alasan });
-  btn.disabled = false; btn.textContent = 'Hantar Permohonan';
-  if(!res.ok) return;
-  loginScreenMode = 'submitted';
-  renderLogin();
+  try{
+    const res = await apiCall('register', { nama, email, password, kampus, alasan });
+    if(!res || !res.ok){
+      showRegError((res && res.error) || 'Permohonan gagal dihantar. Sila semak sambungan internet dan cuba lagi.');
+      return;
+    }
+    loginScreenMode = 'submitted';
+    renderLogin();
+  }catch(err){
+    showRegError('Ralat tidak dijangka: ' + (err && err.message ? err.message : String(err)));
+    console.error(err);
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Hantar Permohonan'; }
+  }
 }
 async function doLogin(){
   const emailField = document.getElementById('loginEmail');
@@ -1198,8 +1211,8 @@ function renderDashboard(){
       <div class="field" style="margin-top:10px;max-width:220px;">
         <label class="field-label">Format Dokumen</label>
         <select id="exportFormat">
-          <option value="html">Laman Web (.html)</option>
           <option value="word">Dokumen Word (.doc)</option>
+          <option value="html">Laman Web (.html)</option>
           <option value="excel">Hamparan Excel (.xlsx)</option>
         </select>
       </div>
@@ -1233,13 +1246,37 @@ function renderDashboard(){
       <div class="field" style="margin-top:10px;max-width:220px;">
         <label class="field-label">Format Dokumen</label>
         <select id="ncOfiFormat">
-          <option value="html">Laman Web (.html)</option>
           <option value="word">Dokumen Word (.doc)</option>
+          <option value="html">Laman Web (.html)</option>
           <option value="excel">Hamparan Excel (.xlsx)</option>
         </select>
       </div>
       <div style="margin-top:14px;">
         <button class="btn primary" onclick="generateNcOfiReport()">⤓ Jana Laporan NCR/OFI</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="callout" style="margin-bottom:16px;">📊 Jana graf bar markah pematuhan semua makmal (dalam sesi & skop kampus dipilih), disusun menaik atau menurun — mudah kenal pasti makmal paling lemah/terbaik sekali imbas.</div>
+      <div class="grid cols-2" style="align-items:end;">
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Skop Kampus</label>
+          <select id="graphScope">
+            <option value="Semua">Semua Kampus</option>
+            <option value="Kampus Teknologi">Kampus Teknologi</option>
+            <option value="Kampus Induk">Kampus Induk</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Susunan Markah</label>
+          <select id="graphOrder">
+            <option value="desc">Menurun (Tertinggi → Terendah)</option>
+            <option value="asc">Menaik (Terendah → Tertinggi)</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <button class="btn primary" onclick="generateScoreGraph()">📊 Jana Graf Markah Makmal</button>
       </div>
     </div>` : ''}
 
@@ -1254,8 +1291,8 @@ function renderDashboard(){
       <div style="min-width:170px;">
         <label class="field-label">Format Dokumen</label>
         <select id="dashFormat">
-          <option value="html">Laman Web (.html)</option>
           <option value="word">Dokumen Word (.doc)</option>
+          <option value="html">Laman Web (.html)</option>
           <option value="excel">Hamparan Excel (.xlsx)</option>
         </select>
       </div>
@@ -1402,6 +1439,87 @@ function generateBulkDocument(){
   toast(`Laporan pukal (${scopeLabel}) dijana & dimuat turun.`);
 }
 
+function escapeXml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function generateScoreGraph(){
+  const scope = document.getElementById('graphScope').value;
+  const order = document.getElementById('graphOrder').value;
+  const focusSessionId = dashboardFocusSessionId();
+  let list = STATE.audits.filter(a=>a.statusRekod!=='Draf' && a.sesiId===focusSessionId);
+  if(scope!=='Semua') list = list.filter(a=>a.kampus===scope);
+  if(!list.length){ toast('Tiada rekod audit untuk skop ini.'); return; }
+
+  const rows = list.map(a=>{
+    const s = computeScore(a.items);
+    return {nama:a.namaMakmal, kampus:a.kampus, pct:s.pct, status:s.status};
+  });
+  rows.sort((x,y)=> order==='asc' ? x.pct-y.pct : y.pct-x.pct);
+
+  const statusColor = {CEMERLANG:'#3F7A55',BAIK:'#3F7A55',MEMUASKAN:'#C97A2B','PERLU PENAMBAHBAIKAN':'#C97A2B','TIDAK MEMUASKAN':'#B23A2E'};
+  const barHeight = 26, gap = 12, leftPad = 230, rightPad = 60, topPad = 40, chartWidth = 520;
+  const svgHeight = topPad + rows.length*(barHeight+gap) + 30;
+  const svgWidth = leftPad + chartWidth + rightPad;
+
+  let gridLines = '';
+  [0,25,50,75,100].forEach(v=>{
+    const x = leftPad + (v/100)*chartWidth;
+    gridLines += `<line x1="${x}" y1="${topPad-12}" x2="${x}" y2="${svgHeight-18}" stroke="#e2ddd0" stroke-width="1"></line>
+      <text x="${x}" y="${topPad-18}" text-anchor="middle" font-size="10" fill="#999" font-family="Arial">${v}%</text>`;
+  });
+
+  let bars = '';
+  rows.forEach((r,i)=>{
+    const y = topPad + i*(barHeight+gap);
+    const barW = Math.max(2, (r.pct/100)*chartWidth);
+    const color = statusColor[r.status] || '#888';
+    bars += `
+      <text x="${leftPad-10}" y="${y+barHeight/2+5}" text-anchor="end" font-size="12" font-family="Arial" fill="#1E2A33">${escapeXml(r.nama.length>28?r.nama.slice(0,26)+'…':r.nama)}</text>
+      <rect x="${leftPad}" y="${y}" width="${barW}" height="${barHeight}" fill="${color}" rx="3"></rect>
+      <text x="${leftPad+barW+8}" y="${y+barHeight/2+5}" font-size="12" font-family="Arial" fill="#333" font-weight="bold">${r.pct.toFixed(1)}%</text>
+    `;
+  });
+
+  const svg = `<svg viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:${svgWidth}px;">
+    ${gridLines}
+    ${bars}
+  </svg>`;
+
+  const scopeLabel = scope==='Semua' ? 'Semua Kampus' : scope;
+  const orderLabel = order==='asc' ? 'Menaik (Terendah ke Tertinggi)' : 'Menurun (Tertinggi ke Terendah)';
+  const focusSess = STATE.sessions.find(s=>s.id===focusSessionId);
+
+  const doc = `<!DOCTYPE html><html lang="ms"><head><meta charset="UTF-8"><title>Graf Markah Makmal — ${scopeLabel}</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:900px;margin:30px auto;padding:0 20px;}
+    h1{font-size:19px;text-align:center;margin-bottom:2px;}
+    h2{font-size:13px;color:#555;text-align:center;margin-top:0;font-weight:normal;}
+    .legend{display:flex;gap:18px;justify-content:center;margin:16px 0 6px;font-size:12px;flex-wrap:wrap;}
+    .legend span{display:inline-flex;align-items:center;gap:6px;}
+    .legend i{width:12px;height:12px;border-radius:3px;display:inline-block;}
+    .chartwrap{overflow-x:auto;margin-top:10px;}
+    @media print{ body{margin:0;} }
+  </style></head><body>
+  <h1>GRAF MARKAH PEMATUHAN MAKMAL — MAKMAL FTKE</h1>
+  <h2>Skop: ${scopeLabel} · Susunan: ${orderLabel} · ${focusSess?focusSess.nama:'-'} · Dijana ${fmtDate(new Date().toISOString())}</h2>
+  <div class="legend">
+    <span><i style="background:#3F7A55;"></i> Cemerlang / Baik</span>
+    <span><i style="background:#C97A2B;"></i> Memuaskan / Perlu Penambahbaikan</span>
+    <span><i style="background:#B23A2E;"></i> Tidak Memuaskan</span>
+  </div>
+  <div class="chartwrap">${svg}</div>
+  </body></html>`;
+
+  const blob = new Blob([doc], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `Graf_Markah_Makmal_${scopeLabel.replace(/\s+/g,'_')}_${order}.html`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  toast(`Graf markah makmal (${scopeLabel}, ${orderLabel}) dijana & dimuat turun.`);
+}
 function generateNcOfiReport(){
   const type = document.getElementById('ncOfiType').value; // 'nc' | 'ofi' | 'kritikal'
   const scope = document.getElementById('ncOfiScope').value; // 'Semua' | 'Kampus Teknologi' | 'Kampus Induk'
@@ -1582,8 +1700,8 @@ function viewAuditDetail(id){
           ${canManage ? `<button class="btn" onclick="b1LoadForEdit(${a.id})">✎ Edit Pemarkahan</button>` : ''}
           ${canManage ? `<button class="btn danger" onclick="deleteAuditRecord(${a.id})">🗑 Padam Pemarkahan</button>` : ''}
           <select id="modalFormat-${a.id}" style="width:auto;">
-            <option value="html">Laman Web (.html)</option>
             <option value="word">Dokumen Word (.doc)</option>
+            <option value="html">Laman Web (.html)</option>
             <option value="excel">Hamparan Excel (.xlsx)</option>
           </select>
           <button class="btn primary" onclick="generateDocument(${a.id}, document.getElementById('modalFormat-${a.id}').value)">⤓ Jana Dokumen</button>
@@ -2170,6 +2288,7 @@ function renderBorang2(){
             📷 Klik untuk muat naik gambar penemuan
             <input type="file" accept="image/*" style="display:none" onchange="b2NCPhoto(${idx},this)">
           </label>
+          ${item.gambarUploading ? `<div class="stat-note">⏳ Memuat naik gambar ke Google Drive...</div>` : ''}
           ${item.gambar?`<img class="photo-thumb" src="${item.gambar}">`:''}
         </div>
         <div class="field">
@@ -2223,6 +2342,7 @@ function renderBorang2(){
             📷 Klik untuk muat naik gambar
             <input type="file" accept="image/*" style="display:none" onchange="b2OFIPhoto(${idx},this)">
           </label>
+          ${item.gambarUploading ? `<div class="stat-note">⏳ Memuat naik gambar ke Google Drive...</div>` : ''}
           ${item.gambar?`<img class="photo-thumb" src="${item.gambar}">`:''}
         </div>
         <div class="field" style="margin-bottom:0;">
@@ -2268,16 +2388,44 @@ function b2AddNC(){ b2.nc.push({seksyen:'A1',gambar:null,penemuan:'',tindakan:''
 function b2RemoveNC(idx){ b2.nc.splice(idx,1); renderBorang2(); }
 function b2AddOFI(){ b2.ofi.push({seksyen:'A1',gambar:null,cadangan:''}); renderBorang2(); }
 function b2RemoveOFI(idx){ b2.ofi.splice(idx,1); renderBorang2(); }
-function b2NCPhoto(idx, input){
+async function b2NCPhoto(idx, input){
   const f = input.files[0]; if(!f) return;
   const r = new FileReader();
-  r.onload = e => { b2.nc[idx].gambar = e.target.result; renderBorang2(); };
+  r.onload = async e => {
+    b2.nc[idx].gambar = e.target.result; // paparan segera (base64 sementara) sambil muat naik
+    b2.nc[idx].gambarUploading = true;
+    renderBorang2();
+    const res = await apiCall('uploadImage', { dataUrl: e.target.result, filename: f.name });
+    b2.nc[idx].gambarUploading = false;
+    if(res.ok){
+      b2.nc[idx].gambar = res.url; // gantikan dengan pautan Google Drive kekal
+      toast('Gambar dimuat naik ke Google Drive.');
+    } else {
+      toast('⚠ Gagal muat naik gambar ke Drive. Gambar tidak akan disimpan bersama laporan.');
+      b2.nc[idx].gambar = null;
+    }
+    renderBorang2();
+  };
   r.readAsDataURL(f);
 }
-function b2OFIPhoto(idx, input){
+async function b2OFIPhoto(idx, input){
   const f = input.files[0]; if(!f) return;
   const r = new FileReader();
-  r.onload = e => { b2.ofi[idx].gambar = e.target.result; renderBorang2(); };
+  r.onload = async e => {
+    b2.ofi[idx].gambar = e.target.result;
+    b2.ofi[idx].gambarUploading = true;
+    renderBorang2();
+    const res = await apiCall('uploadImage', { dataUrl: e.target.result, filename: f.name });
+    b2.ofi[idx].gambarUploading = false;
+    if(res.ok){
+      b2.ofi[idx].gambar = res.url;
+      toast('Gambar dimuat naik ke Google Drive.');
+    } else {
+      toast('⚠ Gagal muat naik gambar ke Drive. Gambar tidak akan disimpan bersama laporan.');
+      b2.ofi[idx].gambar = null;
+    }
+    renderBorang2();
+  };
   r.readAsDataURL(f);
 }
 async function b2Submit(){
@@ -2300,7 +2448,7 @@ async function b2Submit(){
 /* ============ JANA DOKUMEN ============ */
 /* ============ BANTUAN GAMBAR (untuk janaan Excel/Word) ============ */
 function imgMimeAndBase64(dataUrl){
-  if(!dataUrl || dataUrl.indexOf(',')===-1) return null;
+  if(!dataUrl || !dataUrl.startsWith('data:') || dataUrl.indexOf(',')===-1) return null; // pautan Google Drive bukan data: URL - tak boleh terbenam terus
   const meta = dataUrl.slice(5, dataUrl.indexOf(';')); // "image/png"
   const base64 = dataUrl.slice(dataUrl.indexOf(',')+1);
   return {mime: meta, base64};
@@ -2329,7 +2477,7 @@ function buildMhtmlDocument(htmlBody, images){
 }
 
 async function generateDocument(id, format){
-  format = format || 'html';
+  format = format || 'word';
   const a = STATE.audits.find(x=>String(x.id)===String(id));
   if(!a) return;
   const s = computeScore(a.items);
@@ -2360,28 +2508,40 @@ async function generateDocument(id, format){
     }));
 
     const wsNC = wb.addWorksheet('Borang 2 - NC');
-    wsNC.columns = [{width:5},{width:10},{width:34},{width:34},{width:34},{width:22}];
+    wsNC.columns = [{width:5},{width:10},{width:34},{width:34},{width:34},{width:26}];
     wsNC.addRow(['Bil','Seksyen','Item Seksyen','Perincian Penemuan & Lokasi','Cadangan Tindakan Pembetulan','Gambar']).font = {bold:true};
     a.nc.forEach((n,i)=>{
-      const row = wsNC.addRow([i+1, n.seksyen, itemText(n.seksyen), n.penemuan||'', n.tindakan||'', n.gambar?'':'(tiada gambar)']);
+      const isEmbeddable = n.gambar && n.gambar.startsWith('data:');
+      const isLink = n.gambar && !isEmbeddable;
+      const row = wsNC.addRow([i+1, n.seksyen, itemText(n.seksyen), n.penemuan||'', n.tindakan||'', isLink ? '' : (n.gambar?'':'(tiada gambar)')]);
       const rowNum = row.number;
-      wsNC.getRow(rowNum).height = 90;
-      if(n.gambar){
+      if(isEmbeddable){
+        wsNC.getRow(rowNum).height = 90;
         const imgId = wb.addImage({base64: n.gambar, extension: imgExtForExcel(n.gambar)});
         wsNC.addImage(imgId, { tl:{col:5, row:rowNum-1}, ext:{width:150, height:110} });
+      } else if(isLink){
+        const cell = wsNC.getCell(rowNum, 6);
+        cell.value = { text: '📷 Lihat Gambar', hyperlink: n.gambar };
+        cell.font = { color: {argb:'FF2C5C86'}, underline: true };
       }
     });
 
     const wsOFI = wb.addWorksheet('Borang 2 - OFI');
-    wsOFI.columns = [{width:5},{width:10},{width:40},{width:44},{width:22}];
+    wsOFI.columns = [{width:5},{width:10},{width:40},{width:44},{width:26}];
     wsOFI.addRow(['Bil','Seksyen','Item Seksyen','Cadangan Penambahbaikan','Gambar']).font = {bold:true};
     a.ofi.forEach((o,i)=>{
-      const row = wsOFI.addRow([i+1, o.seksyen, itemText(o.seksyen), o.cadangan||'', o.gambar?'':'(tiada gambar)']);
+      const isEmbeddable = o.gambar && o.gambar.startsWith('data:');
+      const isLink = o.gambar && !isEmbeddable;
+      const row = wsOFI.addRow([i+1, o.seksyen, itemText(o.seksyen), o.cadangan||'', isLink ? '' : (o.gambar?'':'(tiada gambar)')]);
       const rowNum = row.number;
-      wsOFI.getRow(rowNum).height = 90;
-      if(o.gambar){
+      if(isEmbeddable){
+        wsOFI.getRow(rowNum).height = 90;
         const imgId = wb.addImage({base64: o.gambar, extension: imgExtForExcel(o.gambar)});
         wsOFI.addImage(imgId, { tl:{col:4, row:rowNum-1}, ext:{width:150, height:110} });
+      } else if(isLink){
+        const cell = wsOFI.getCell(rowNum, 5);
+        cell.value = { text: '📷 Lihat Gambar', hyperlink: o.gambar };
+        cell.font = { color: {argb:'FF2C5C86'}, underline: true };
       }
     });
 
@@ -2460,6 +2620,7 @@ async function generateDocument(id, format){
   if(format==='word'){
     // Word (.doc melalui MHTML) tidak memaparkan gambar base64 dalam <img src="data:..."> dengan boleh dipercayai.
     // Jadi bina versi HTML berasingan yang rujuk gambar melalui cid: (rujukan MIME terbenam) - cara betul Word terima gambar terbenam.
+    // Gambar yang kini disimpan sebagai pautan Google Drive (bukan data: base64) dipaparkan sebagai pautan boleh klik sahaja.
     const wordImages = [];
     let cidCounter = 0;
     function registerImg(dataUrl){
@@ -2467,17 +2628,22 @@ async function generateDocument(id, format){
       wordImages.push({cid, dataUrl});
       return 'cid:'+cid;
     }
+    function imgOrLinkHtml(gambar){
+      if(!gambar) return '';
+      if(gambar.startsWith('data:')) return `<div><img src="${registerImg(gambar)}" style="max-width:260px;border:1px solid #ccc;margin:6px 0;"></div>`;
+      return `<div><a href="${gambar}">📷 Lihat Gambar (Google Drive)</a></div>`;
+    }
     const ncHtmlWord = a.nc.length ? a.nc.map((n,i)=>`
       <div class="ncblock">
         <b>NC ${i+1} — Seksyen ${n.seksyen} (${itemText(n.seksyen)})</b>
-        ${n.gambar?`<div><img src="${registerImg(n.gambar)}" style="max-width:260px;border:1px solid #ccc;margin:6px 0;"></div>`:''}
+        ${imgOrLinkHtml(n.gambar)}
         <div><i>Penemuan & Lokasi:</i> ${n.penemuan||'-'}</div>
         <div><i>Cadangan Tindakan Pembetulan:</i> ${n.tindakan||'-'}</div>
       </div>`).join('') : '<p>Tiada NC direkodkan.</p>';
     const ofiHtmlWord = a.ofi.length ? a.ofi.map((o,i)=>`
       <div class="ncblock">
         <b>OFI ${i+1} — Seksyen ${o.seksyen} (${itemText(o.seksyen)})</b>
-        ${o.gambar?`<div><img src="${registerImg(o.gambar)}" style="max-width:260px;border:1px solid #ccc;margin:6px 0;"></div>`:''}
+        ${imgOrLinkHtml(o.gambar)}
         <div>${o.cadangan||'-'}</div>
       </div>`).join('') : '<p>Tiada OFI direkodkan.</p>';
 
