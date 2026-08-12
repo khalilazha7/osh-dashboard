@@ -325,7 +325,7 @@ const CONFIG = {
 
 /* ============ SAMBUNGAN KE BACKEND (Google Apps Script) ============ */
 async function apiCall(action, data){
-  if(CONFIG.API_URL.includes('https://script.google.com/macros/s/AKfycbz2doVpSBY-z37JBnoBxpgpfnd440kpQzCOH_SLVa7y-HI7QXIAnGRrik0wnbswsu71Wg/exec')){
+  if(CONFIG.API_URL.includes('GANTIKAN_DENGAN')){
     toast('⚠ Backend belum disambung. Sila tetapkan CONFIG.API_URL dalam kod (rujuk arahan Code.gs).');
     throw new Error('API_URL belum ditetapkan');
   }
