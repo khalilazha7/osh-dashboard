@@ -329,22 +329,41 @@ async function apiCall(action, data){
     toast('⚠ Backend belum disambung. Sila tetapkan CONFIG.API_URL dalam kod (rujuk arahan Code.gs).');
     throw new Error('API_URL belum ditetapkan');
   }
+  let res, rawText;
   try{
-    const res = await fetch(CONFIG.API_URL, {
+    res = await fetch(CONFIG.API_URL, {
       method: 'POST',
       // guna text/plain supaya browser tidak hantar 'preflight' OPTIONS request
       // (Google Apps Script Web App tidak layan preflight dengan baik)
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action, ...data })
     });
-    const json = await res.json();
-    if(!json.ok){ toast('⚠ ' + (json.error || 'Ralat tidak diketahui daripada backend.')); }
-    return json;
-  }catch(err){
-    toast('⚠ Gagal hubungi backend. Semak sambungan internet & CONFIG.API_URL.');
-    console.error(err);
-    return { ok:false, error:String(err) };
+  }catch(networkErr){
+    // Ini sebenarnya GAGAL SEPENUHNYA hubungi server - selalunya tanda isu CORS/rangkaian
+    const msg = `Gagal hubungi backend sepenuhnya (kemungkinan CORS/rangkaian). Butiran: ${networkErr.message}`;
+    toast('⚠ ' + msg);
+    console.error('apiCall network error:', networkErr);
+    return { ok:false, error: msg };
   }
+  try{
+    rawText = await res.text();
+  }catch(readErr){
+    toast('⚠ Gagal baca respons daripada backend.');
+    return { ok:false, error:'Gagal baca respons: ' + String(readErr) };
+  }
+  let json;
+  try{
+    json = JSON.parse(rawText);
+  }catch(parseErr){
+    // Respons BUKAN JSON - papar 300 aksara pertama SEBENAR supaya boleh didiagnos tepat
+    const preview = rawText.slice(0, 300);
+    const msg = `Backend memulangkan respons bukan-JSON (Status HTTP: ${res.status}). Kandungan sebenar diterima:\n\n${preview}`;
+    toast('⚠ Respons backend tidak sah. Sila salin mesej penuh untuk disiasat.');
+    showFatalError(new Error(msg), `apiCall("${action}") — Status ${res.status}`);
+    return { ok:false, error: msg };
+  }
+  if(!json.ok){ toast('⚠ ' + (json.error || 'Ralat tidak diketahui daripada backend.')); }
+  return json;
 }
 async function loadAllDataFromBackend(){
   const res = await apiCall('getData', {});
