@@ -262,7 +262,7 @@
     border:1.5px dashed var(--line);border-radius:8px;padding:14px;text-align:center;
     color:var(--text-mute);font-size:12.5px;cursor:pointer;background:var(--paper);
   }
-  .photo-thumb{width:100%;max-height:170px;object-fit:cover;border-radius:8px;margin-top:8px;border:1px solid var(--line);}
+  .photo-thumb{max-width:480px;max-height:480px;width:auto;height:auto;object-fit:contain;border-radius:8px;margin-top:8px;border:1px solid var(--line);}
 
   .critical-list{display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;}
   @media(max-width:900px){.critical-list{grid-template-columns:1fr;}}
@@ -346,12 +346,13 @@ async function apiCall(action, data){
     toast('⚠ Backend belum disambung. Sila tetapkan CONFIG.API_URL dalam kod (rujuk arahan worker.js).');
     throw new Error('API_URL belum ditetapkan');
   }
+  const token = (currentUser && currentUser.token) ? currentUser.token : null;
   let res, rawText;
   try{
     res = await fetch(CONFIG.API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ...data })
+      body: JSON.stringify({ action, token, ...data })
     });
   }catch(networkErr){
     const msg = `Gagal hubungi backend sepenuhnya (kemungkinan rangkaian/URL salah). Butiran: ${networkErr.message}`;
@@ -922,7 +923,7 @@ async function doLogin(){
       errBox.style.display = 'block';
       return;
     }
-    currentUser = res.user;
+    currentUser = { ...res.user, token: res.token };
     toast(`Memuatkan data...`);
     const loaded = await loadAllDataFromBackend();
     if(!loaded){ errBox.textContent = 'Gagal muat data daripada backend.'; errBox.style.display='block'; return; }
