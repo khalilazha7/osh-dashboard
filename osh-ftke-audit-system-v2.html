@@ -29,6 +29,15 @@
     --radius:10px;
     --solid:#10243E;
   }
+  body.scheme-green{
+    --ink:#0F3D2E; --ink-soft:#1B5A44; --steel:#2E7D5B; --steel-light:#E7F3ED; --solid:#0F3D2E;
+  }
+  body.scheme-purple{
+    --ink:#2E1A47; --ink-soft:#452768; --steel:#6B4B9E; --steel-light:#F0EBF7; --solid:#2E1A47;
+  }
+  body.scheme-maroon{
+    --ink:#4A1620; --ink-soft:#6B2230; --steel:#8B3A4A; --steel-light:#F7EAEC; --solid:#4A1620;
+  }
   body.dark{
     --ink:#EAF0F6;
     --ink-soft:#C9D8E6;
@@ -325,7 +334,7 @@
    ============================================================
    1. Pasang backend ikut arahan dalam fail worker.js (Cloudflare Worker)
    2. Selepas Deploy, salin URL Worker (cth: https://osh-audit-backend.xxxx.workers.dev)
-   3. Tampal URL tu di bawah, gantikan teks '   https://osh-audit-backend.kaleel83.workers.dev'
+   3. Tampal URL tu di bawah, gantikan teks 'GANTIKAN_DENGAN_URL_WORKER'
    ============================================================ */
 const CONFIG = {
   API_URL: 'https://osh-audit-backend.kaleel83.workers.dev',
@@ -611,6 +620,36 @@ function adminDeleteSession(id){
     renderAdmin();
   }, {confirmLabel:'🗑 Ya, Padam Sepenuhnya'});
 }
+let fontScale = Number(localStorage.getItem('oshFontScale')) || 100;
+function applyFontScale(){
+  document.body.style.zoom = fontScale + '%';
+}
+function increaseFontSize(){
+  fontScale = Math.min(140, fontScale + 10);
+  localStorage.setItem('oshFontScale', fontScale);
+  applyFontScale();
+}
+function decreaseFontSize(){
+  fontScale = Math.max(80, fontScale - 10);
+  localStorage.setItem('oshFontScale', fontScale);
+  applyFontScale();
+}
+let colorScheme = localStorage.getItem('oshColorScheme') || 'navy';
+function applyColorScheme(){
+  document.body.classList.remove('scheme-green','scheme-purple','scheme-maroon');
+  if(colorScheme!=='navy') document.body.classList.add('scheme-'+colorScheme);
+}
+function setColorScheme(scheme){
+  colorScheme = scheme;
+  localStorage.setItem('oshColorScheme', scheme);
+  applyColorScheme();
+}
+function colorSchemePicker(){
+  const schemes = [{id:'navy',label:'Navy',color:'#10243E'},{id:'green',label:'Hijau',color:'#0F3D2E'},{id:'purple',label:'Ungu',color:'#2E1A47'},{id:'maroon',label:'Marun',color:'#4A1620'}];
+  return `<div style="display:flex;gap:8px;margin-bottom:10px;">
+    ${schemes.map(s=>`<button onclick="setColorScheme('${s.id}')" title="${s.label}" style="width:26px;height:26px;border-radius:50%;background:${s.color};border:2px solid ${colorScheme===s.id?'#fff':'transparent'};box-shadow:${colorScheme===s.id?'0 0 0 2px '+s.color:'none'};cursor:pointer;padding:0;"></button>`).join('')}
+  </div>`;
+}
 function toggleTheme(){
   currentTheme = currentTheme==='light' ? 'dark' : 'light';
   document.body.classList.toggle('dark', currentTheme==='dark');
@@ -703,8 +742,10 @@ async function adminApproveRegistration(id){
   if(!res.ok) return;
   USERS.push({id: Date.now(), email:r.email, nama:r.nama, peranan:role, kampus:r.kampus, aktif:true});
   STATE.pendingRegistrations = STATE.pendingRegistrations.filter(x=>x.id!==id);
+  updatePendingBadge();
   toast(`${r.nama} diterima sebagai ${role}.`);
   await loadAllDataFromBackend();
+  updatePendingBadge();
   renderAdminUsers();
 }
 async function adminRejectRegistration(id){
@@ -713,6 +754,7 @@ async function adminRejectRegistration(id){
   const res = await apiCall('rejectRegistration', { id });
   if(!res.ok) return;
   STATE.pendingRegistrations = STATE.pendingRegistrations.filter(x=>x.id!==id);
+  updatePendingBadge();
   toast(`Permohonan ${r.nama} ditolak.`);
   renderAdminUsers();
 }
@@ -785,13 +827,6 @@ function renderLogin(){
         <label class="field-label">Sahkan Kata Laluan</label>
         <input type="password" id="regPassword2" placeholder="Taip semula kata laluan">
       </div>
-      <div class="field">
-        <label class="field-label">Kampus</label>
-        <select id="regKampus">
-          <option>Kampus Teknologi</option>
-          <option>Kampus Induk</option>
-        </select>
-      </div>
       <div class="field" style="margin-bottom:0;">
         <label class="field-label">Jawatan / Catatan (pilihan)</label>
         <textarea id="regAlasan" placeholder="cth. Pensyarah/Penyelia Makmal, ingin menjadi Auditor OSH"></textarea>
@@ -805,15 +840,50 @@ function renderLogin(){
     body = `
       <div class="callout" style="margin-bottom:16px;">✅ <b>Permohonan anda telah dihantar.</b> Sila tunggu kelulusan daripada Admin (Pengerusi OSH). Anda akan boleh log masuk sebaik akaun anda diluluskan.</div>
       <button class="btn primary" style="width:100%;justify-content:center;" onclick="loginScreenMode='login'; renderLogin();">← Kembali ke Log Masuk</button>`;
+  } else if(loginScreenMode==='forgot'){
+    body = `
+      <div style="font-size:11.5px;font-weight:600;color:var(--text-mute);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Lupa Kata Laluan</div>
+      <div class="callout" style="margin-bottom:14px;font-size:12.5px;">Masukkan e-mel akaun anda — kami akan hantar pautan untuk tetapkan semula kata laluan (sah 1 jam).</div>
+      <div class="field" style="margin-bottom:0;">
+        <label class="field-label">E-mel</label>
+        <input type="text" id="forgotEmail" placeholder="nama@utem.edu.my">
+      </div>
+      <div id="forgotError" style="color:var(--red);font-size:12.5px;margin-top:10px;display:none;background:var(--red-bg);padding:9px 11px;border-radius:7px;"></div>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button class="btn" onclick="loginScreenMode='login'; renderLogin();">← Kembali</button>
+        <button class="btn primary" id="forgotSubmitBtn" onclick="submitForgotPassword()">Hantar Pautan Reset</button>
+      </div>`;
+  } else if(loginScreenMode==='forgotSent'){
+    body = `
+      <div class="callout" style="margin-bottom:16px;">📧 <b>Kalau e-mel tu wujud dalam sistem</b>, pautan tetapan semula telah dihantar. Semak peti masuk (& folder spam) anda.</div>
+      <button class="btn primary" style="width:100%;justify-content:center;" onclick="loginScreenMode='login'; renderLogin();">← Kembali ke Log Masuk</button>`;
+  } else if(loginScreenMode==='resetPassword'){
+    body = `
+      <div style="font-size:11.5px;font-weight:600;color:var(--text-mute);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Tetapkan Semula Kata Laluan</div>
+      <div class="field">
+        <label class="field-label">Kata Laluan Baharu</label>
+        <input type="password" id="resetPassword1" placeholder="Sekurang-kurangnya 6 aksara">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label class="field-label">Sahkan Kata Laluan Baharu</label>
+        <input type="password" id="resetPassword2" placeholder="Taip semula kata laluan">
+      </div>
+      <div id="resetError" style="color:var(--red);font-size:12.5px;margin-top:10px;display:none;background:var(--red-bg);padding:9px 11px;border-radius:7px;"></div>
+      <div style="margin-top:14px;">
+        <button class="btn primary" id="resetSubmitBtn" style="width:100%;justify-content:center;" onclick="submitResetPassword()">Tetapkan Kata Laluan Baharu</button>
+      </div>`;
   } else {
     body = `
       <div class="field">
         <label class="field-label">E-mel</label>
         <input type="text" id="loginEmail" placeholder="nama@utem.edu.my" onkeydown="if(event.key==='Enter') document.getElementById('loginPassword').focus()">
       </div>
-      <div class="field" style="margin-bottom:10px;">
+      <div class="field" style="margin-bottom:6px;">
         <label class="field-label">Kata Laluan</label>
         <input type="password" id="loginPassword" placeholder="Kata laluan" onkeydown="if(event.key==='Enter') doLogin()">
+      </div>
+      <div style="text-align:right;margin-bottom:10px;">
+        <a href="#" style="font-size:12px;color:var(--steel);" onclick="loginScreenMode='forgot'; renderLogin(); return false;">Lupa kata laluan?</a>
       </div>
       <div id="loginError" style="color:var(--red);font-size:12.5px;margin-bottom:10px;display:none;"></div>
       <button class="btn primary" id="loginSubmitBtn" style="width:100%;justify-content:center;" onclick="doLogin()">Log Masuk</button>
@@ -828,7 +898,11 @@ function renderLogin(){
             <div class="brand-mark">OSH</div>
             <div class="brand-text" style="color:var(--ink);">Sistem Audit OSH<span style="color:var(--text-mute);">FTKE · UTeM</span></div>
           </div>
-          <button class="btn sm theme-toggle-btn" onclick="toggleTheme()">${currentTheme==='dark'?'☀️ Mod Cerah':'🌙 Mod Gelap'}</button>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button class="btn sm" onclick="decreaseFontSize()" title="Kecilkan Teks">A−</button>
+            <button class="btn sm" onclick="increaseFontSize()" title="Besarkan Teks">A+</button>
+            <button class="btn sm theme-toggle-btn" onclick="toggleTheme()">${currentTheme==='dark'?'☀️ Mod Cerah':'🌙 Mod Gelap'}</button>
+          </div>
         </div>
         ${body}
       </div>
@@ -843,7 +917,7 @@ async function submitRegistrationRequest(){
   const email = document.getElementById('regEmail').value.trim().toLowerCase();
   const password = document.getElementById('regPassword').value;
   const password2 = document.getElementById('regPassword2').value;
-  const kampus = document.getElementById('regKampus').value;
+  const kampus = 'Kedua-Dua'; // Admin boleh tetapkan kampus sebenar semasa/selepas kelulusan
   const alasan = document.getElementById('regAlasan').value.trim();
   function showRegError(msg){ errBox.textContent = msg; errBox.style.display = 'block'; }
   if(!nama || !email || !password){ showRegError('Sila isi nama, e-mel dan kata laluan.'); return; }
@@ -864,6 +938,60 @@ async function submitRegistrationRequest(){
     showRegError('Ralat tidak dijangka: ' + (err && err.message ? err.message : String(err)));
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = 'Hantar Permohonan'; }
+  }
+}
+async function submitForgotPassword(){
+  const errBox = document.getElementById('forgotError');
+  errBox.style.display = 'none';
+  const email = document.getElementById('forgotEmail').value.trim().toLowerCase();
+  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    errBox.textContent = 'Sila masukkan e-mel yang sah.'; errBox.style.display='block'; return;
+  }
+  const btn = document.getElementById('forgotSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Menghantar...';
+  try{
+    const appUrl = window.location.origin + window.location.pathname;
+    const res = await apiCall('forgotPassword', { email, appUrl });
+    if(!res.ok){
+      errBox.textContent = res.error || 'Gagal hantar pautan reset.';
+      errBox.style.display = 'block';
+      return;
+    }
+    loginScreenMode = 'forgotSent';
+    renderLogin();
+  }catch(err){
+    errBox.textContent = 'Ralat tidak dijangka: ' + (err && err.message ? err.message : String(err));
+    errBox.style.display = 'block';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Hantar Pautan Reset';
+  }
+}
+async function submitResetPassword(){
+  const errBox = document.getElementById('resetError');
+  errBox.style.display = 'none';
+  const p1 = document.getElementById('resetPassword1').value;
+  const p2 = document.getElementById('resetPassword2').value;
+  if(!p1 || p1.length<6){ errBox.textContent='Kata laluan mesti sekurang-kurangnya 6 aksara.'; errBox.style.display='block'; return; }
+  if(p1!==p2){ errBox.textContent='Kata laluan dan sahkan kata laluan tidak sepadan.'; errBox.style.display='block'; return; }
+  const btn = document.getElementById('resetSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Menetapkan...';
+  try{
+    const res = await apiCall('resetPassword', { token: window.__resetToken, password: p1 });
+    if(!res.ok){
+      errBox.textContent = res.error || 'Gagal tetapkan semula kata laluan.';
+      errBox.style.display = 'block';
+      return;
+    }
+    toast('Kata laluan berjaya ditetapkan semula. Sila log masuk.');
+    window.__resetToken = null;
+    history.replaceState(null, '', window.location.pathname);
+    loginScreenMode = 'login';
+    renderLogin();
+  }catch(err){
+    errBox.textContent = 'Ralat tidak dijangka: ' + (err && err.message ? err.message : String(err));
+    errBox.style.display = 'block';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Tetapkan Kata Laluan Baharu';
   }
 }
 async function doLogin(){
@@ -920,9 +1048,14 @@ function renderShell(){
       </div>
       <div class="nav-item ${isAdmin()?'':'nav-locked'}" data-view="adminUsers" onclick="${isAdmin()?"nav('adminUsers')":"toast('Hanya Admin boleh akses halaman ini.')"}">
         <span class="nav-dot"></span> Pengurusan Pengguna ${isAdmin()?'':'🔒'}
-        ${isAdmin() && STATE.pendingRegistrations.length ? `<span class="badge red" style="margin-left:6px;">${STATE.pendingRegistrations.length}</span>` : ''}
+        <span id="pendingRegBadge">${isAdmin() && STATE.pendingRegistrations.length ? `<span class="badge red" style="margin-left:6px;">${STATE.pendingRegistrations.length}</span>` : ''}</span>
       </div>
       <div class="sidebar-foot">
+        ${colorSchemePicker()}
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <button class="btn sm" style="flex:1;justify-content:center;background:rgba(255,255,255,.06);color:#DCE6EF;border-color:rgba(255,255,255,.14);" onclick="decreaseFontSize()" title="Kecilkan Teks">A−</button>
+          <button class="btn sm" style="flex:1;justify-content:center;background:rgba(255,255,255,.06);color:#DCE6EF;border-color:rgba(255,255,255,.14);" onclick="increaseFontSize()" title="Besarkan Teks">A+</button>
+        </div>
         <button class="btn sm theme-toggle-btn" style="width:100%;justify-content:center;margin-bottom:10px;background:rgba(255,255,255,.06);color:#DCE6EF;border-color:rgba(255,255,255,.14);" onclick="toggleTheme()">${currentTheme==='dark'?'☀️ Mod Cerah':'🌙 Mod Gelap'}</button>
         <div class="user-chip">
           <div class="acct-avatar">${initials(currentUser.nama)}</div>
@@ -941,6 +1074,11 @@ function renderShell(){
 
 /* ============ NAV / RENDER SWITCH ============ */
 let currentView = 'dashboard';
+function updatePendingBadge(){
+  const el = document.getElementById('pendingRegBadge');
+  if(!el) return; // sidebar mungkin belum dilukis (cth semasa skrin log masuk)
+  el.innerHTML = (isAdmin() && STATE.pendingRegistrations.length) ? `<span class="badge red" style="margin-left:6px;">${STATE.pendingRegistrations.length}</span>` : '';
+}
 function nav(view){
   try{
     if((view==='admin' || view==='adminUsers') && !isAdmin()){ toast('Hanya Admin boleh akses halaman ini.'); view='dashboard'; }
@@ -1294,6 +1432,11 @@ function renderDashboard(){
           <option value="excel">Hamparan Excel (.xlsx)</option>
         </select>
       </div>
+      <div style="margin-top:10px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="ncOfiIncludeGambar" style="width:auto;accent-color:var(--steel);"> Sertakan lajur Gambar (Word akan dijana dalam mod landskap)
+        </label>
+      </div>
       <div style="margin-top:14px;">
         <button class="btn primary" onclick="generateNcOfiReport()">⤓ Jana Laporan NCR/OFI</button>
       </div>
@@ -1620,10 +1763,11 @@ function generateScoreGraph(){
   document.body.removeChild(link);
   toast(`Graf makmal (${scopeLabel}, ${metricLabels}) dijana & dimuat turun.`);
 }
-function generateNcOfiReport(){
+async function generateNcOfiReport(){
   const type = document.getElementById('ncOfiType').value; // 'nc' | 'ofi' | 'kritikal'
   const scope = document.getElementById('ncOfiScope').value; // 'Semua' | 'Kampus Teknologi' | 'Kampus Induk'
   const format = document.getElementById('ncOfiFormat').value;
+  const includeGambar = document.getElementById('ncOfiIncludeGambar').checked && type!=='kritikal';
   const focusSessionId = dashboardFocusSessionId();
 
   let audits = STATE.audits.filter(a=>a.statusRekod!=='Draf' && a.sesiId===focusSessionId);
@@ -1646,7 +1790,7 @@ function generateNcOfiReport(){
       makmal:a.namaMakmal, kampus:a.kampus, auditor:a.auditor, tarikh:a.tarikh,
       bil: idx+1, seksyen:item.seksyen, teksSeksyen: itemText(item.seksyen),
       penemuan: item.penemuan||'', tindakan: item.tindakan||'', cadangan: item.cadangan||'',
-      adaGambar: !!item.gambar
+      adaGambar: !!item.gambar, gambar: item.gambar || null
     }));
   });
 
@@ -1655,26 +1799,83 @@ function generateNcOfiReport(){
 
   if(!entries.length){ toast(`Tiada rekod ${fileTag} untuk skop ini.`); return; }
 
+  const REPORT_IMG_W_PX = 144; // 1.5 inci @ 96dpi
+  const REPORT_IMG_H_PX = 96;  // 1 inci @ 96dpi
+
   if(format==='excel'){
-    const headerNC = ['Bil','Makmal','Kampus','Seksyen','Item Seksyen','Perincian Penemuan & Lokasi','Cadangan Tindakan Pembetulan','Ada Gambar'];
-    const headerOFI = ['Bil','Makmal','Kampus','Seksyen','Item Seksyen','Cadangan Penambahbaikan','Ada Gambar'];
+    const headerNC = ['Bil','Makmal','Kampus','Seksyen','Item Seksyen','Perincian Penemuan & Lokasi','Cadangan Tindakan Pembetulan'].concat(includeGambar?['Gambar']:['Ada Gambar']);
+    const headerOFI = ['Bil','Makmal','Kampus','Seksyen','Item Seksyen','Cadangan Penambahbaikan'].concat(includeGambar?['Gambar']:['Ada Gambar']);
     const headerKrit = ['Bil','Makmal','Kampus','Auditor','Tarikh Audit','Kod Item Kritikal','Item Audit','Catatan'];
-    const rows = [type==='nc' ? headerNC : type==='ofi' ? headerOFI : headerKrit];
-    entries.forEach((e,i)=>{
-      if(type==='nc') rows.push([i+1, e.makmal, e.kampus, e.seksyen, e.teksSeksyen, e.penemuan, e.tindakan, e.adaGambar?'Ya':'Tiada']);
-      else if(type==='ofi') rows.push([i+1, e.makmal, e.kampus, e.seksyen, e.teksSeksyen, e.cadangan, e.adaGambar?'Ya':'Tiada']);
-      else rows.push([i+1, e.makmal, e.kampus, e.auditor, fmtDate(e.tarikh), e.seksyen, e.teksSeksyen, e.catatan||'-']);
-    });
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = type==='nc'
-      ? [{wch:5},{wch:22},{wch:15},{wch:8},{wch:32},{wch:30},{wch:30},{wch:9}]
-      : type==='ofi' ? [{wch:5},{wch:24},{wch:16},{wch:8},{wch:36},{wch:42},{wch:10}]
-      : [{wch:5},{wch:22},{wch:15},{wch:18},{wch:14},{wch:8},{wch:34},{wch:26}];
-    XLSX.utils.book_append_sheet(wb, ws, `Laporan ${fileTag}`);
-    XLSX.writeFile(wb, `Laporan_${fileTag}_${scopeLabel.replace(/\s+/g,'_')}.xlsx`);
-    toast(`Fail Excel Laporan ${fileTag} (${scopeLabel}) dijana & dimuat turun.`);
+    if(!includeGambar){
+      const rows = [type==='nc' ? headerNC : type==='ofi' ? headerOFI : headerKrit];
+      entries.forEach((e,i)=>{
+        if(type==='nc') rows.push([i+1, e.makmal, e.kampus, e.seksyen, e.teksSeksyen, e.penemuan, e.tindakan, e.adaGambar?'Ya':'Tiada']);
+        else if(type==='ofi') rows.push([i+1, e.makmal, e.kampus, e.seksyen, e.teksSeksyen, e.cadangan, e.adaGambar?'Ya':'Tiada']);
+        else rows.push([i+1, e.makmal, e.kampus, e.auditor, fmtDate(e.tarikh), e.seksyen, e.teksSeksyen, e.catatan||'-']);
+      });
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = type==='nc'
+        ? [{wch:5},{wch:22},{wch:15},{wch:8},{wch:32},{wch:30},{wch:30},{wch:9}]
+        : type==='ofi' ? [{wch:5},{wch:24},{wch:16},{wch:8},{wch:36},{wch:42},{wch:10}]
+        : [{wch:5},{wch:22},{wch:15},{wch:18},{wch:14},{wch:8},{wch:34},{wch:26}];
+      XLSX.utils.book_append_sheet(wb, ws, `Laporan ${fileTag}`);
+      XLSX.writeFile(wb, `Laporan_${fileTag}_${scopeLabel.replace(/\s+/g,'_')}.xlsx`);
+      toast(`Fail Excel Laporan ${fileTag} (${scopeLabel}) dijana & dimuat turun.`);
+      return;
+    }
+    // Excel dengan gambar terbenam (guna ExcelJS)
+    toast('Menjana Excel dengan gambar... sila tunggu.');
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet(`Laporan ${fileTag}`);
+    const headers = type==='nc' ? headerNC : headerOFI;
+    ws.addRow(headers).font = {bold:true};
+    ws.columns = type==='nc'
+      ? [{width:5},{width:22},{width:15},{width:8},{width:32},{width:30},{width:30},{width:22}]
+      : [{width:5},{width:24},{width:16},{width:8},{width:36},{width:42},{width:22}];
+    for(const [i,e] of entries.entries()){
+      const rowVals = type==='nc' ? [i+1, e.makmal, e.kampus, e.seksyen, e.teksSeksyen, e.penemuan, e.tindakan, ''] : [i+1, e.makmal, e.kampus, e.seksyen, e.teksSeksyen, e.cadangan, ''];
+      const row = ws.addRow(rowVals);
+      if(e.gambar){
+        const base64Data = e.gambar.startsWith('data:') ? e.gambar : await fetchImageAsBase64(e.gambar);
+        if(base64Data){
+          row.height = REPORT_IMG_H_PX * 0.75;
+          const imgId = wb.addImage({base64: base64Data, extension: imgExtForExcel(base64Data)});
+          ws.addImage(imgId, { tl:{col:headers.length-1, row:row.number-1}, ext:{width:REPORT_IMG_W_PX, height:REPORT_IMG_H_PX} });
+        }
+      }
+    }
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = `Laporan_${fileTag}_${scopeLabel.replace(/\s+/g,'_')}.xlsx`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    toast(`Fail Excel Laporan ${fileTag} (${scopeLabel}) dengan gambar dijana & dimuat turun.`);
     return;
+  }
+
+  // Pra-fetch gambar sebagai base64 (untuk cid Word) jika perlu
+  const imgCache = {};
+  if(includeGambar && format==='word'){
+    for(const e of entries){
+      if(e.gambar && !e.gambar.startsWith('data:')) imgCache[e.gambar] = await fetchImageAsBase64(e.gambar);
+    }
+  }
+  const wordImages = [];
+  let cidCounter = 0;
+  function registerImg(gambar){
+    const dataUrl = gambar.startsWith('data:') ? gambar : imgCache[gambar];
+    if(!dataUrl) return '';
+    const cid = 'img'+(cidCounter++)+'@osh.local';
+    wordImages.push({cid, dataUrl});
+    return 'cid:'+cid;
+  }
+  function gambarCellHtml(e){
+    if(!includeGambar) return `<td class="c">${e.adaGambar?'Ya':'-'}</td>`;
+    if(!e.gambar) return `<td class="c">-</td>`;
+    const src = format==='word' ? registerImg(e.gambar) : e.gambar;
+    return `<td class="c"><img src="${src}" style="max-width:1.5in;max-height:1in;width:auto;height:auto;"></td>`;
   }
 
   const tableRows = entries.map((e,i)=>{
@@ -1683,14 +1884,14 @@ function generateNcOfiReport(){
       <td class="c">${i+1}</td><td>${e.makmal}</td><td>${e.kampus}</td>
       <td class="c">${e.seksyen}</td><td>${e.teksSeksyen}</td>
       <td>${e.penemuan||'-'}</td><td>${e.tindakan||'-'}</td>
-      <td class="c">${e.adaGambar?'Ya':'-'}</td>
+      ${gambarCellHtml(e)}
     </tr>`;
     if(type==='ofi') return `
     <tr>
       <td class="c">${i+1}</td><td>${e.makmal}</td><td>${e.kampus}</td>
       <td class="c">${e.seksyen}</td><td>${e.teksSeksyen}</td>
       <td>${e.cadangan||'-'}</td>
-      <td class="c">${e.adaGambar?'Ya':'-'}</td>
+      ${gambarCellHtml(e)}
     </tr>`;
     return `
     <tr>
@@ -1699,13 +1900,16 @@ function generateNcOfiReport(){
     </tr>`;
   }).join('');
 
-  const theadNC = `<tr><th class="c">Bil</th><th>Makmal</th><th>Kampus</th><th class="c">Seksyen</th><th>Item Seksyen</th><th>Perincian Penemuan & Lokasi</th><th>Cadangan Tindakan Pembetulan</th><th class="c">Gambar</th></tr>`;
-  const theadOFI = `<tr><th class="c">Bil</th><th>Makmal</th><th>Kampus</th><th class="c">Seksyen</th><th>Item Seksyen</th><th>Cadangan Penambahbaikan</th><th class="c">Gambar</th></tr>`;
+  const gambarHead = includeGambar ? 'Gambar' : 'Gambar';
+  const theadNC = `<tr><th class="c">Bil</th><th>Makmal</th><th>Kampus</th><th class="c">Seksyen</th><th>Item Seksyen</th><th>Perincian Penemuan & Lokasi</th><th>Cadangan Tindakan Pembetulan</th><th class="c">${gambarHead}</th></tr>`;
+  const theadOFI = `<tr><th class="c">Bil</th><th>Makmal</th><th>Kampus</th><th class="c">Seksyen</th><th>Item Seksyen</th><th>Cadangan Penambahbaikan</th><th class="c">${gambarHead}</th></tr>`;
   const theadKrit = `<tr><th class="c">Bil</th><th>Makmal</th><th>Kampus</th><th>Auditor</th><th>Tarikh Audit</th><th class="c">Kod</th><th>Item Kritikal Gagal (Skor 0)</th><th>Catatan</th></tr>`;
   const thead = type==='nc'?theadNC : type==='ofi'?theadOFI : theadKrit;
 
+  const landscapeStyle = (includeGambar && format==='word') ? `@page { size: landscape; }` : '';
   const doc = `<!DOCTYPE html><html lang="ms"><head><meta charset="UTF-8"><title>Laporan ${fileTag} — ${scopeLabel}</title>
   <style>
+    ${landscapeStyle}
     body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;max-width:1080px;margin:30px auto;padding:0 20px;line-height:1.5;}
     h1{font-size:19px;text-align:center;margin-bottom:2px;}
     h2{font-size:13px;color:#555;text-align:center;margin-top:0;font-weight:normal;}
@@ -1725,6 +1929,16 @@ function generateNcOfiReport(){
   </body></html>`;
 
   if(format==='word'){
+    if(includeGambar && wordImages.length){
+      const mhtml = buildMhtmlDocument(doc, wordImages);
+      const blob = new Blob([mhtml], {type:'application/msword'});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = `Laporan_${fileTag}_${scopeLabel.replace(/\s+/g,'_')}.doc`;
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      toast(`Dokumen Word Laporan ${fileTag} (${scopeLabel}, landskap, dengan gambar) dijana & dimuat turun.`);
+      return;
+    }
     const blob = new Blob(['\ufeff'+doc], {type:'application/msword'});
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -2204,12 +2418,23 @@ function freshB1(){
     items: blankItems()
   };
 }
+function b2SelectAudit(id){
+  b2.auditId = id;
+  const a = STATE.audits.find(x=>String(x.id)===String(id));
+  // Muat semula NC/OFI SEDIA ADA supaya kelihatan bila pilih semula makmal yang sudah ada rekod
+  // (elak hilang/tertimpa data lama - guna salinan mendalam supaya edit tak jejas data asal sehingga disimpan)
+  b2.nc = a ? JSON.parse(JSON.stringify(a.nc || [])) : [];
+  b2.ofi = a ? JSON.parse(JSON.stringify(a.ofi || [])) : [];
+  renderBorang2();
+}
 function b2GoTo(id){
   const a = STATE.audits.find(x=>x.id===id);
   if(!a) return;
   if(!isAdmin() && a.emailAuditor !== currentUser.email){ toast('Rekod ini bukan milik anda.'); return; }
   b2 = freshB2();
   b2.auditId = id;
+  b2.nc = JSON.parse(JSON.stringify(a.nc || []));
+  b2.ofi = JSON.parse(JSON.stringify(a.ofi || []));
   nav('borang2');
 }
 function b1LoadForEdit(id){
@@ -2241,6 +2466,13 @@ function b1SectionComplete(idx){
     return sec.items.every(([code])=> b1.items[code] && b1.items[code].skor!==null);
   }
   return false;
+}
+function b1QuickFillSection(sectionCode, skorValue){
+  const sec = SECTIONS.find(s=>s.code===sectionCode);
+  if(!sec) return;
+  sec.items.forEach(([code])=>{ b1.items[code].skor = skorValue; });
+  renderBorang1();
+  toast(`Semua item Bahagian ${sectionCode} ditandakan "${skorValue==='2'?'Patuh':skorValue==='1'?'Perlu Penambahbaikan':skorValue==='0'?'Tidak Patuh':'NA'}". Boleh edit semula item tertentu jika perlu.`);
 }
 function renderBorang1(){
   if(!b1) b1 = freshB1();
@@ -2296,6 +2528,15 @@ function renderBorang1(){
     body = `<div class="flex-between" style="margin-bottom:14px;">
         <div class="display" style="font-size:15px;font-weight:600;color:var(--ink);">${sec.code}. ${sec.title}</div>
         <span class="badge ${answeredInSec===sec.items.length?'green':'amber'}">${answeredInSec}/${sec.items.length} dijawab</span>
+      </div>
+      <div class="callout" style="margin-bottom:14px;font-size:12.5px;">
+        ⚡ Isi cepat (tandakan semua item bahagian ini sekaligus — boleh edit semula item individu selepas itu):
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+          <button class="btn sm" onclick="b1QuickFillSection('${sec.code}','2')">✓ Semua Patuh (2)</button>
+          <button class="btn sm" onclick="b1QuickFillSection('${sec.code}','1')">✓ Semua Perlu Penambahbaikan (1)</button>
+          <button class="btn sm" onclick="b1QuickFillSection('${sec.code}','0')">✓ Semua Tidak Patuh (0)</button>
+          <button class="btn sm" onclick="b1QuickFillSection('${sec.code}','NA')">✓ Semua NA</button>
+        </div>
       </div>` +
       sec.items.map(([code,text])=>{
         const isCrit = STATE.admin.criticalItems.includes(code);
@@ -2490,7 +2731,7 @@ function renderBorang2(){
     <div class="card">
       <div class="field">
         <label class="field-label">Pilih Makmal (ditarik dari Borang 1 anda sahaja)</label>
-        <select onchange="b2.auditId=this.value; renderBorang2()">
+        <select onchange="b2SelectAudit(this.value)">
           <option value="">— Pilih makmal —</option>
           ${availableAudits.map(a=>`<option value="${a.id}" ${String(a.id)===String(b2.auditId)?'selected':''}>${a.namaMakmal} — ${a.kampus} (${fmtDate(a.tarikh)}) ${a.statusRekod==='MenungguBorang2'?'⏳':''}</option>`).join('')}
         </select>
@@ -2712,8 +2953,8 @@ function fitWithinBox(natW, natH, maxW, maxH){
   if(h > maxH){ w = w * (maxH / h); h = maxH; }
   return {width: Math.round(w), height: Math.round(h)};
 }
-const MAX_IMG_W_PX = 384; // 4 inci @ 96dpi
-const MAX_IMG_H_PX = 480; // 5 inci @ 96dpi
+const MAX_IMG_W_PX = 566; // 5.9 inci @ 96dpi
+const MAX_IMG_H_PX = 384; // 4 inci @ 96dpi
 
 async function fetchImageAsBase64(url){
   // Worker backend kita sendiri set header CORS betul pada /image/ - jadi fetch silang-domain ni boleh dipercayai
@@ -2849,14 +3090,14 @@ async function generateDocument(id, format){
   const ncHtml = a.nc.length ? a.nc.map((n,i)=>`
     <div class="ncblock">
       <b>NC ${i+1} — Seksyen ${n.seksyen} (${itemText(n.seksyen)})</b>
-      ${n.gambar?`<div><img src="${n.gambar}" style="max-width:4in;max-height:5in;width:auto;height:auto;border:1px solid #ccc;margin:6px 0;"></div>`:''}
-      <div><i>Penemuan & Lokasi:</i> ${n.penemuan||'-'}</div>
-      <div><i>Cadangan Tindakan Pembetulan:</i> ${n.tindakan||'-'}</div>
+      ${n.gambar?`<div><img src="${n.gambar}" style="max-width:5.9in;max-height:4in;width:auto;height:auto;border:1px solid #ccc;margin:6px 0;"></div>`:''}
+      <div><b>Penemuan & Lokasi:</b> ${n.penemuan||'-'}</div>
+      <div><b>Cadangan Tindakan Pembetulan:</b> ${n.tindakan||'-'}</div>
     </div>`).join('') : '<p>Tiada NC direkodkan.</p>';
   const ofiHtml = a.ofi.length ? a.ofi.map((o,i)=>`
     <div class="ncblock">
       <b>OFI ${i+1} — Seksyen ${o.seksyen} (${itemText(o.seksyen)})</b>
-      ${o.gambar?`<div><img src="${o.gambar}" style="max-width:4in;max-height:5in;width:auto;height:auto;border:1px solid #ccc;margin:6px 0;"></div>`:''}
+      ${o.gambar?`<div><img src="${o.gambar}" style="max-width:5.9in;max-height:4in;width:auto;height:auto;border:1px solid #ccc;margin:6px 0;"></div>`:''}
       <div>${o.cadangan||'-'}</div>
     </div>`).join('') : '<p>Tiada OFI direkodkan.</p>';
 
@@ -2916,14 +3157,14 @@ async function generateDocument(id, format){
     const ncHtmlWord = a.nc.length ? a.nc.map((n,i)=>`
       <div class="ncblock">
         <b>NC ${i+1} — Seksyen ${n.seksyen} (${itemText(n.seksyen)})</b>
-        ${n.gambar?`<div><img src="${registerImg(n.gambar)}" style="max-width:4in;max-height:5in;width:auto;height:auto;border:1px solid #ccc;margin:6px 0;"></div>`:''}
-        <div><i>Penemuan & Lokasi:</i> ${n.penemuan||'-'}</div>
-        <div><i>Cadangan Tindakan Pembetulan:</i> ${n.tindakan||'-'}</div>
+        ${n.gambar?`<div><img src="${registerImg(n.gambar)}" style="max-width:5.9in;max-height:4in;width:auto;height:auto;border:1px solid #ccc;margin:6px 0;"></div>`:''}
+        <div><b>Penemuan & Lokasi:</b> ${n.penemuan||'-'}</div>
+        <div><b>Cadangan Tindakan Pembetulan:</b> ${n.tindakan||'-'}</div>
       </div>`).join('') : '<p>Tiada NC direkodkan.</p>';
     const ofiHtmlWord = a.ofi.length ? a.ofi.map((o,i)=>`
       <div class="ncblock">
         <b>OFI ${i+1} — Seksyen ${o.seksyen} (${itemText(o.seksyen)})</b>
-        ${o.gambar?`<div><img src="${registerImg(o.gambar)}" style="max-width:4in;max-height:5in;width:auto;height:auto;border:1px solid #ccc;margin:6px 0;"></div>`:''}
+        ${o.gambar?`<div><img src="${registerImg(o.gambar)}" style="max-width:5.9in;max-height:4in;width:auto;height:auto;border:1px solid #ccc;margin:6px 0;"></div>`:''}
         <div>${o.cadangan||'-'}</div>
       </div>`).join('') : '<p>Tiada OFI direkodkan.</p>';
 
@@ -2989,6 +3230,14 @@ async function generateDocument(id, format){
 
 /* init */
 try{
+  applyFontScale();
+  applyColorScheme();
+  const urlParams = new URLSearchParams(window.location.search);
+  const resetToken = urlParams.get('resetToken');
+  if(resetToken){
+    window.__resetToken = resetToken;
+    loginScreenMode = 'resetPassword';
+  }
   renderLogin();
 }catch(err){
   showFatalError(err, 'renderLogin (permulaan)');
