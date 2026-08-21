@@ -55,7 +55,12 @@
     --red-bg:#3A1712;
     --text:#DCE6EF;
     --text-mute:#8FA3B8;
+    --solid:#6FAEDD; /* lebih terang berbanding navy gelap #10243E - elak butang "malap" pudar dalam mod gelap */
   }
+  body.dark .btn.primary{ color:#0B1622; } /* teks gelap pada butang terang supaya kontras jelas dalam mod gelap */
+  body.dark.scheme-green{ --solid:#5FCB9A; }
+  body.dark.scheme-purple{ --solid:#B08FDE; }
+  body.dark.scheme-maroon{ --solid:#E08A9A; }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
@@ -648,7 +653,7 @@ function setColorScheme(scheme){
 function colorSchemePicker(){
   const schemes = [{id:'navy',label:'Navy',color:'#10243E'},{id:'green',label:'Hijau',color:'#0F3D2E'},{id:'purple',label:'Ungu',color:'#2E1A47'},{id:'maroon',label:'Marun',color:'#4A1620'}];
   return `<div style="display:flex;gap:8px;margin-bottom:10px;">
-    ${schemes.map(s=>`<button onclick="setColorScheme('${s.id}')" title="${s.label}" style="width:26px;height:26px;border-radius:50%;background:${s.color};border:2px solid ${colorScheme===s.id?'#fff':'transparent'};box-shadow:${colorScheme===s.id?'0 0 0 2px '+s.color:'none'};cursor:pointer;padding:0;"></button>`).join('')}
+    ${schemes.map(s=>`<button onclick="setColorScheme('${s.id}')" title="${s.label}" style="width:26px;height:26px;border-radius:50%;background:${s.color};border:2px solid rgba(255,255,255,.35);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;">${colorScheme===s.id?'<span style="color:#fff;font-size:13px;font-weight:bold;line-height:1;">✓</span>':''}</button>`).join('')}
   </div>`;
 }
 function toggleTheme(){
@@ -2032,6 +2037,21 @@ function renderAdmin(){
       </div>
     </div>
 
+    <div class="section-title">Analisis Pematuhan <div class="rule"></div></div>
+    <div class="callout">📈 Jana laporan analisis merentasi <b>semua sesi</b> (bukan sekadar sesi semasa) — 10 item paling kerap gagal, trend pematuhan antara sesi, perbandingan kampus, dan bahagian paling lemah.</div>
+    <div class="card">
+      <div class="field" style="max-width:220px;">
+        <label class="field-label">Format Dokumen</label>
+        <select id="analysisFormat">
+          <option value="word">Dokumen Word (.doc)</option>
+          <option value="html">Laman Web (.html)</option>
+        </select>
+      </div>
+      <div style="margin-top:14px;">
+        <button class="btn primary" onclick="generateComplianceAnalysis()">📈 Jana Analisis Pematuhan</button>
+      </div>
+    </div>
+
     <div class="section-title">Keselamatan Pemadaman Data <div class="rule"></div></div>
     <div class="callout">Kata laluan ini akan diminta setiap kali sesiapa (Admin/Auditor) cuba memadam sesi audit atau rekod pemarkahan, sebagai langkah pencegahan padam tidak sengaja.</div>
     <div class="card" style="max-width:360px;">
@@ -2203,6 +2223,140 @@ function generateActionPlan(){
   link.click();
   document.body.removeChild(link);
   toast(`Dokumen Word Pelan Tindakan (${scopeLabel}) dijana & dimuat turun.`);
+}
+function generateComplianceAnalysis(){
+  const format = document.getElementById('analysisFormat').value;
+  const completed = STATE.audits.filter(a=>a.statusRekod==='Selesai');
+  if(!completed.length){ toast('Tiada rekod audit "Selesai" untuk dianalisis.'); return; }
+
+  // ===== 1. Item paling kerap gagal (skor 0/1) — 10 teratas =====
+  const itemStats = {};
+  getAllCodes().forEach(code=>{ itemStats[code] = {skor0:0, skor1:0}; });
+  completed.forEach(a=>{
+    getAllCodes().forEach(code=>{
+      const it = a.items[code];
+      if(!it || it.skor===null) return;
+      if(it.skor==='0') itemStats[code].skor0++;
+      else if(it.skor==='1') itemStats[code].skor1++;
+    });
+  });
+  const itemRanked = getAllCodes().map(code=>({
+    code, teks: itemText(code), skor0: itemStats[code].skor0, skor1: itemStats[code].skor1,
+    jumlah: itemStats[code].skor0 + itemStats[code].skor1,
+    peratus: (((itemStats[code].skor0 + itemStats[code].skor1) / completed.length) * 100).toFixed(1)
+  })).sort((a,b)=> b.jumlah - a.jumlah).slice(0, 10).filter(x=>x.jumlah>0);
+
+  // ===== 2. Trend antara sesi =====
+  const sessionStats = {};
+  completed.forEach(a=>{
+    const s = computeScore(a.items);
+    if(!sessionStats[a.sesiId]) sessionStats[a.sesiId] = {sum:0, count:0};
+    sessionStats[a.sesiId].sum += s.pct;
+    sessionStats[a.sesiId].count++;
+  });
+  const sessionTrend = STATE.sessions
+    .filter(s=> sessionStats[s.id])
+    .map(s=>({ nama:s.nama, tarikhMula:s.tarikhMula, purata:(sessionStats[s.id].sum/sessionStats[s.id].count).toFixed(1), jumlahAudit:sessionStats[s.id].count }))
+    .sort((a,b)=> (a.tarikhMula||'').localeCompare(b.tarikhMula||''));
+
+  // ===== 3. Perbandingan kampus =====
+  const campusStats = {};
+  completed.forEach(a=>{
+    const s = computeScore(a.items);
+    if(!campusStats[a.kampus]) campusStats[a.kampus] = {sum:0, count:0};
+    campusStats[a.kampus].sum += s.pct;
+    campusStats[a.kampus].count++;
+  });
+  const campusCompare = Object.entries(campusStats).map(([kampus,v])=>({ kampus, purata:(v.sum/v.count).toFixed(1), jumlahAudit:v.count }));
+
+  // ===== 4. Bahagian paling lemah (purata skor % setiap bahagian A-G) =====
+  const sectionStats = SECTIONS.map(sec=>{
+    let sum=0, max=0;
+    completed.forEach(a=>{
+      sec.items.forEach(([code])=>{
+        const it = a.items[code];
+        if(it && it.skor!==null && it.skor!=='NA'){ sum += Number(it.skor); max += 2; }
+      });
+    });
+    return { kod:sec.code, tajuk:sec.title, peratus: max>0 ? ((sum/max)*100).toFixed(1) : '0.0' };
+  }).sort((a,b)=> Number(a.peratus) - Number(b.peratus));
+
+  const dijana = fmtDate(new Date().toISOString());
+
+  if(format==='html'){
+    const doc = buildAnalysisHtml(itemRanked, sessionTrend, campusCompare, sectionStats, dijana, completed.length);
+    const blob = new Blob([doc], {type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = `Analisis_Pematuhan_${dijana.replace(/\s+/g,'_')}.html`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    toast('Laporan Analisis Pematuhan dijana & dimuat turun.');
+    return;
+  }
+  const doc = buildAnalysisHtml(itemRanked, sessionTrend, campusCompare, sectionStats, dijana, completed.length);
+  const blob = new Blob(['\ufeff'+doc], {type:'application/msword'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url; link.download = `Analisis_Pematuhan_${dijana.replace(/\s+/g,'_')}.doc`;
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  toast('Dokumen Word Analisis Pematuhan dijana & dimuat turun.');
+}
+function buildAnalysisHtml(itemRanked, sessionTrend, campusCompare, sectionStats, dijana, jumlahAudit){
+  const itemRows = itemRanked.map((x,i)=>`
+    <tr><td class="c">${i+1}</td><td class="c">${x.code}</td><td>${x.teks}</td>
+      <td class="c" style="color:#B23A2E;font-weight:bold;">${x.skor0}</td>
+      <td class="c" style="color:#D9722E;">${x.skor1}</td>
+      <td class="c"><b>${x.jumlah}</b></td><td class="c">${x.peratus}%</td></tr>`).join('');
+  const trendRows = sessionTrend.map(s=>`
+    <tr><td>${s.nama}</td><td class="c">${s.tarikhMula||'-'}</td><td class="c">${s.jumlahAudit}</td><td class="c"><b>${s.purata}%</b></td></tr>`).join('');
+  const campusRows = campusCompare.map(c=>`
+    <tr><td>${c.kampus}</td><td class="c">${c.jumlahAudit}</td><td class="c"><b>${c.purata}%</b></td></tr>`).join('');
+  const sectionRows = sectionStats.map((s,i)=>`
+    <tr><td class="c">${i+1}</td><td class="c">${s.kod}</td><td>${s.tajuk}</td><td class="c"><b>${s.peratus}%</b></td></tr>`).join('');
+
+  return `<!DOCTYPE html><html lang="ms"><head><meta charset="UTF-8"><title>Analisis Pematuhan</title>
+  <style>
+    body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;max-width:900px;margin:30px auto;padding:0 20px;line-height:1.5;}
+    h1{font-size:19px;text-align:center;margin-bottom:2px;}
+    h2.sub{font-size:13px;color:#555;text-align:center;margin-top:0;font-weight:normal;}
+    h2.section{font-size:14px;color:#10243E;margin:28px 0 6px;border-bottom:1px solid #ddd;padding-bottom:4px;}
+    p.note{font-size:12px;color:#666;margin:2px 0 10px;}
+    table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:6px;}
+    th,td{border:1px solid #ccc;padding:6px 7px;text-align:left;}
+    td.c,th.c{text-align:center;}
+    th{background:#F0EEE6;}
+    @media print{ body{margin:0;} }
+  </style></head><body>
+  <h1>ANALISIS PEMATUHAN — AUDIT OSH MAKMAL FTKE</h1>
+  <h2 class="sub">Merentasi semua sesi · ${jumlahAudit} audit "Selesai" · Dijana ${dijana}</h2>
+
+  <h2 class="section">1. Item Paling Kerap Gagal (10 Teratas)</h2>
+  <p class="note">Kekerapan skor 0 (Tidak Patuh) dan 1 (Perlu Penambahbaikan) merentasi semua audit — tunjuk isu sistemik yang berulang.</p>
+  <table>
+    <thead><tr><th class="c">#</th><th class="c">Kod</th><th>Item Audit</th><th class="c">Skor 0</th><th class="c">Skor 1</th><th class="c">Jumlah</th><th class="c">% Audit Terjejas</th></tr></thead>
+    <tbody>${itemRows || '<tr><td colspan="7" class="c">Tiada item gagal direkodkan.</td></tr>'}</tbody>
+  </table>
+
+  <h2 class="section">2. Trend Pematuhan Antara Sesi</h2>
+  <p class="note">Purata peratus pematuhan setiap sesi audit, disusun mengikut tarikh — kenal pasti trend meningkat/menurun.</p>
+  <table>
+    <thead><tr><th>Sesi</th><th class="c">Tarikh Mula</th><th class="c">Jumlah Audit</th><th class="c">Purata Pematuhan</th></tr></thead>
+    <tbody>${trendRows || '<tr><td colspan="4" class="c">Tiada data.</td></tr>'}</tbody>
+  </table>
+
+  <h2 class="section">3. Perbandingan Kampus</h2>
+  <table>
+    <thead><tr><th>Kampus</th><th class="c">Jumlah Audit</th><th class="c">Purata Pematuhan</th></tr></thead>
+    <tbody>${campusRows || '<tr><td colspan="3" class="c">Tiada data.</td></tr>'}</tbody>
+  </table>
+
+  <h2 class="section">4. Bahagian Paling Lemah (Susunan Menaik)</h2>
+  <p class="note">Purata skor setiap Bahagian (A-G) merentasi semua audit — bahagian dengan peratus TERENDAH memerlukan tumpuan latihan/sumber.</p>
+  <table>
+    <thead><tr><th class="c">#</th><th class="c">Kod</th><th>Bahagian</th><th class="c">Purata Skor</th></tr></thead>
+    <tbody>${sectionRows}</tbody>
+  </table>
+  </body></html>`;
 }
 function renderAdminUsers(){
   document.getElementById('main').innerHTML = `
