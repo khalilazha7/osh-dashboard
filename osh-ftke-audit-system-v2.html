@@ -1767,17 +1767,19 @@ async function generateNcOfiReport(){
     return;
   }
 
-  // Pra-fetch gambar sebagai base64 (untuk cid Word) jika perlu
+  // Pra-proses (fetch + kecilkan piksel sebenar) gambar untuk cid Word jika perlu
   const imgCache = {};
   if(includeGambar && format==='word'){
     for(const e of entries){
-      if(e.gambar && !e.gambar.startsWith('data:')) imgCache[e.gambar] = await fetchImageAsBase64(e.gambar);
+      if(!e.gambar) continue;
+      const raw = e.gambar.startsWith('data:') ? e.gambar : await fetchImageAsBase64(e.gambar);
+      if(raw) imgCache[e.gambar] = await resizeImageToFit(raw, REPORT_IMG_W_PX, REPORT_IMG_H_PX);
     }
   }
   const wordImages = [];
   let cidCounter = 0;
   function registerImg(gambar){
-    const dataUrl = gambar.startsWith('data:') ? gambar : imgCache[gambar];
+    const dataUrl = imgCache[gambar]; // sentiasa guna versi yang SUDAH dikecilkan
     if(!dataUrl) return '';
     const cid = 'img'+(cidCounter++)+'@osh.local';
     wordImages.push({cid, dataUrl});
@@ -2882,6 +2884,26 @@ async function fetchImageAsBase64(url){
     });
   }catch(e){ return null; }
 }
+async function resizeImageToFit(dataUrl, maxWidthPx, maxHeightPx){
+  // Word tak selalu hormat CSS max-width/max-height pada gambar terbenam - jadi kecilkan
+  // PIKSEL SEBENAR gambar (guna canvas) sebelum dibenamkan, supaya saiz fail sendiri memang kecil.
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = () => {
+      const fitted = fitWithinBox(img.naturalWidth || maxWidthPx, img.naturalHeight || maxHeightPx, maxWidthPx, maxHeightPx);
+      try{
+        const canvas = document.createElement('canvas');
+        canvas.width = fitted.width;
+        canvas.height = fitted.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, fitted.width, fitted.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.85)); // JPEG - saiz fail lebih kecil untuk dokumen
+      }catch(e){ resolve(dataUrl); } // gagal proses - guna asal sahaja
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
 function imgMimeAndBase64(dataUrl){
   if(!dataUrl || !dataUrl.startsWith('data:') || dataUrl.indexOf(',')===-1) return null;
   const meta = dataUrl.slice(5, dataUrl.indexOf(';')); // "image/png"
@@ -3051,17 +3073,24 @@ async function generateDocument(id, format){
   </body></html>`;
 
   if(format==='word'){
-    // Word (.doc melalui MHTML) tidak memaparkan gambar base64 dalam <img src="data:..."> dengan boleh dipercayai.
-    // Jadi bina versi HTML berasingan yang rujuk gambar melalui cid: (rujukan MIME terbenam) - cara betul Word terima gambar terbenam.
-    // Pra-fetch semua gambar (URL R2) sebagai base64 dahulu, sebab registerImg() dipanggil segerak dalam .map() di bawah.
+    // Word (.doc melalui MHTML) tidak memaparkan gambar base64 dalam <img src="data:..."> dengan boleh dipercayai,
+    // DAN tak selalu hormat CSS max-width/max-height pada gambar terbenam - jadi kecilkan PIKSEL SEBENAR dahulu.
     const imgCache = {};
-    for(const n of a.nc){ if(n.gambar && !n.gambar.startsWith('data:')) imgCache[n.gambar] = await fetchImageAsBase64(n.gambar); }
-    for(const o of a.ofi){ if(o.gambar && !o.gambar.startsWith('data:')) imgCache[o.gambar] = await fetchImageAsBase64(o.gambar); }
+    for(const n of a.nc){
+      if(!n.gambar) continue;
+      const raw = n.gambar.startsWith('data:') ? n.gambar : await fetchImageAsBase64(n.gambar);
+      if(raw) imgCache[n.gambar] = await resizeImageToFit(raw, MAX_IMG_W_PX, MAX_IMG_H_PX);
+    }
+    for(const o of a.ofi){
+      if(!o.gambar) continue;
+      const raw = o.gambar.startsWith('data:') ? o.gambar : await fetchImageAsBase64(o.gambar);
+      if(raw) imgCache[o.gambar] = await resizeImageToFit(raw, MAX_IMG_W_PX, MAX_IMG_H_PX);
+    }
     const wordImages = [];
     let cidCounter = 0;
     function registerImg(gambar){
-      const dataUrl = gambar.startsWith('data:') ? gambar : imgCache[gambar];
-      if(!dataUrl) return ''; // gagal fetch - elak cid rosak
+      const dataUrl = imgCache[gambar]; // sentiasa guna versi yang SUDAH dikecilkan (piksel sebenar)
+      if(!dataUrl) return ''; // gagal proses - elak cid rosak
       const cid = 'img'+(cidCounter++)+'@osh.local';
       wordImages.push({cid, dataUrl});
       return 'cid:'+cid;
