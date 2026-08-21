@@ -840,50 +840,15 @@ function renderLogin(){
     body = `
       <div class="callout" style="margin-bottom:16px;">✅ <b>Permohonan anda telah dihantar.</b> Sila tunggu kelulusan daripada Admin (Pengerusi OSH). Anda akan boleh log masuk sebaik akaun anda diluluskan.</div>
       <button class="btn primary" style="width:100%;justify-content:center;" onclick="loginScreenMode='login'; renderLogin();">← Kembali ke Log Masuk</button>`;
-  } else if(loginScreenMode==='forgot'){
-    body = `
-      <div style="font-size:11.5px;font-weight:600;color:var(--text-mute);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Lupa Kata Laluan</div>
-      <div class="callout" style="margin-bottom:14px;font-size:12.5px;">Masukkan e-mel akaun anda — kami akan hantar pautan untuk tetapkan semula kata laluan (sah 1 jam).</div>
-      <div class="field" style="margin-bottom:0;">
-        <label class="field-label">E-mel</label>
-        <input type="text" id="forgotEmail" placeholder="nama@utem.edu.my">
-      </div>
-      <div id="forgotError" style="color:var(--red);font-size:12.5px;margin-top:10px;display:none;background:var(--red-bg);padding:9px 11px;border-radius:7px;"></div>
-      <div style="display:flex;gap:8px;margin-top:14px;">
-        <button class="btn" onclick="loginScreenMode='login'; renderLogin();">← Kembali</button>
-        <button class="btn primary" id="forgotSubmitBtn" onclick="submitForgotPassword()">Hantar Pautan Reset</button>
-      </div>`;
-  } else if(loginScreenMode==='forgotSent'){
-    body = `
-      <div class="callout" style="margin-bottom:16px;">📧 <b>Kalau e-mel tu wujud dalam sistem</b>, pautan tetapan semula telah dihantar. Semak peti masuk (& folder spam) anda.</div>
-      <button class="btn primary" style="width:100%;justify-content:center;" onclick="loginScreenMode='login'; renderLogin();">← Kembali ke Log Masuk</button>`;
-  } else if(loginScreenMode==='resetPassword'){
-    body = `
-      <div style="font-size:11.5px;font-weight:600;color:var(--text-mute);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Tetapkan Semula Kata Laluan</div>
-      <div class="field">
-        <label class="field-label">Kata Laluan Baharu</label>
-        <input type="password" id="resetPassword1" placeholder="Sekurang-kurangnya 6 aksara">
-      </div>
-      <div class="field" style="margin-bottom:0;">
-        <label class="field-label">Sahkan Kata Laluan Baharu</label>
-        <input type="password" id="resetPassword2" placeholder="Taip semula kata laluan">
-      </div>
-      <div id="resetError" style="color:var(--red);font-size:12.5px;margin-top:10px;display:none;background:var(--red-bg);padding:9px 11px;border-radius:7px;"></div>
-      <div style="margin-top:14px;">
-        <button class="btn primary" id="resetSubmitBtn" style="width:100%;justify-content:center;" onclick="submitResetPassword()">Tetapkan Kata Laluan Baharu</button>
-      </div>`;
   } else {
     body = `
       <div class="field">
         <label class="field-label">E-mel</label>
         <input type="text" id="loginEmail" placeholder="nama@utem.edu.my" onkeydown="if(event.key==='Enter') document.getElementById('loginPassword').focus()">
       </div>
-      <div class="field" style="margin-bottom:6px;">
+      <div class="field" style="margin-bottom:10px;">
         <label class="field-label">Kata Laluan</label>
         <input type="password" id="loginPassword" placeholder="Kata laluan" onkeydown="if(event.key==='Enter') doLogin()">
-      </div>
-      <div style="text-align:right;margin-bottom:10px;">
-        <a href="#" style="font-size:12px;color:var(--steel);" onclick="loginScreenMode='forgot'; renderLogin(); return false;">Lupa kata laluan?</a>
       </div>
       <div id="loginError" style="color:var(--red);font-size:12.5px;margin-bottom:10px;display:none;"></div>
       <button class="btn primary" id="loginSubmitBtn" style="width:100%;justify-content:center;" onclick="doLogin()">Log Masuk</button>
@@ -938,60 +903,6 @@ async function submitRegistrationRequest(){
     showRegError('Ralat tidak dijangka: ' + (err && err.message ? err.message : String(err)));
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = 'Hantar Permohonan'; }
-  }
-}
-async function submitForgotPassword(){
-  const errBox = document.getElementById('forgotError');
-  errBox.style.display = 'none';
-  const email = document.getElementById('forgotEmail').value.trim().toLowerCase();
-  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
-    errBox.textContent = 'Sila masukkan e-mel yang sah.'; errBox.style.display='block'; return;
-  }
-  const btn = document.getElementById('forgotSubmitBtn');
-  btn.disabled = true; btn.textContent = 'Menghantar...';
-  try{
-    const appUrl = window.location.origin + window.location.pathname;
-    const res = await apiCall('forgotPassword', { email, appUrl });
-    if(!res.ok){
-      errBox.textContent = res.error || 'Gagal hantar pautan reset.';
-      errBox.style.display = 'block';
-      return;
-    }
-    loginScreenMode = 'forgotSent';
-    renderLogin();
-  }catch(err){
-    errBox.textContent = 'Ralat tidak dijangka: ' + (err && err.message ? err.message : String(err));
-    errBox.style.display = 'block';
-  }finally{
-    btn.disabled = false; btn.textContent = 'Hantar Pautan Reset';
-  }
-}
-async function submitResetPassword(){
-  const errBox = document.getElementById('resetError');
-  errBox.style.display = 'none';
-  const p1 = document.getElementById('resetPassword1').value;
-  const p2 = document.getElementById('resetPassword2').value;
-  if(!p1 || p1.length<6){ errBox.textContent='Kata laluan mesti sekurang-kurangnya 6 aksara.'; errBox.style.display='block'; return; }
-  if(p1!==p2){ errBox.textContent='Kata laluan dan sahkan kata laluan tidak sepadan.'; errBox.style.display='block'; return; }
-  const btn = document.getElementById('resetSubmitBtn');
-  btn.disabled = true; btn.textContent = 'Menetapkan...';
-  try{
-    const res = await apiCall('resetPassword', { token: window.__resetToken, password: p1 });
-    if(!res.ok){
-      errBox.textContent = res.error || 'Gagal tetapkan semula kata laluan.';
-      errBox.style.display = 'block';
-      return;
-    }
-    toast('Kata laluan berjaya ditetapkan semula. Sila log masuk.');
-    window.__resetToken = null;
-    history.replaceState(null, '', window.location.pathname);
-    loginScreenMode = 'login';
-    renderLogin();
-  }catch(err){
-    errBox.textContent = 'Ralat tidak dijangka: ' + (err && err.message ? err.message : String(err));
-    errBox.style.display = 'block';
-  }finally{
-    btn.disabled = false; btn.textContent = 'Tetapkan Kata Laluan Baharu';
   }
 }
 async function doLogin(){
@@ -3232,12 +3143,6 @@ async function generateDocument(id, format){
 try{
   applyFontScale();
   applyColorScheme();
-  const urlParams = new URLSearchParams(window.location.search);
-  const resetToken = urlParams.get('resetToken');
-  if(resetToken){
-    window.__resetToken = resetToken;
-    loginScreenMode = 'resetPassword';
-  }
   renderLogin();
 }catch(err){
   showFatalError(err, 'renderLogin (permulaan)');
