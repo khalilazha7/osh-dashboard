@@ -63,7 +63,7 @@
   body.dark.scheme-purple{ --btn-primary-bg:#B08FDE; }
   body.dark.scheme-maroon{ --btn-primary-bg:#E08A9A; }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;height:100%;overflow:hidden;}
+  html,body{margin:0;padding:0;}
   body{
     background:var(--paper);
     color:var(--text);
@@ -74,9 +74,8 @@
   }
   #app{
     display:flex;
-    height:100%;
+    min-height:100vh;
     width:100%;
-    overflow:hidden; /* elak scroll pada tahap halaman - setiap panel scroll berasingan di bawah */
   }
   .mono{font-family:'IBM Plex Mono',monospace;}
   .display{font-family:'Space Grotesk',sans-serif;}
@@ -104,7 +103,7 @@
     color:#DCE6EF;
     display:flex;flex-direction:column;
     padding:22px 16px;
-    height:100%;overflow-y:auto; /* scroll sendiri - tak bergantung pada scroll bahagian kanan */
+    position:sticky;top:0;height:100vh;
   }
   .brand{display:flex;align-items:center;gap:9px;margin-bottom:30px;padding:0 4px;}
   .brand-mark{
@@ -131,7 +130,7 @@
   .sidebar-foot{margin-top:auto;padding:12px 8px 4px;border-top:1px solid rgba(255,255,255,.08);font-size:11px;color:#6E8397;}
 
   /* ---- main ---- */
-  .main{flex:1;min-width:0;padding:28px 34px 60px;max-width:1280px;height:100%;overflow-y:auto;}
+  .main{flex:1;min-width:0;padding:28px 34px 60px;max-width:1280px;}
   .topline{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:10px;}
   .h1{font-family:'Space Grotesk';font-weight:700;font-size:23px;color:var(--ink);margin:0;}
   .h1-sub{color:var(--text-mute);font-size:13px;margin-top:3px;}
@@ -157,10 +156,9 @@
 
   /* ---- responsif telefon bimbit ---- */
   @media(max-width:780px){
-    html,body{ height:auto; overflow:visible; }
-    #app{ flex-direction:column; height:auto; min-height:100vh; overflow:visible; }
+    #app{ flex-direction:column; }
     .sidebar{
-      width:100%; height:auto; overflow-y:visible; position:static;
+      width:100%; height:auto; position:static;
       flex-direction:row; flex-wrap:wrap; align-items:center;
       padding:12px 14px; gap:0;
     }
@@ -171,7 +169,7 @@
       width:100%; margin-top:10px; padding-top:10px;
       border-top:1px solid rgba(255,255,255,.1);
     }
-    .main{ padding:18px 16px 50px; height:auto; overflow-y:visible; }
+    .main{ padding:18px 16px 50px; }
     .h1{ font-size:19px; }
     .topline{ flex-direction:column; align-items:flex-start; }
     .rail{ gap:6px; }
@@ -631,7 +629,14 @@ function adminDeleteSession(id){
 }
 let fontScale = Number(localStorage.getItem('oshFontScale')) || 100;
 function applyFontScale(){
-  document.body.style.zoom = fontScale + '%';
+  const main = document.getElementById('main');
+  if(main && main.innerHTML.trim()){
+    main.style.zoom = fontScale + '%';
+    document.body.style.zoom = ''; // pastikan seluruh body (termasuk sidebar) TAK turut zoom
+  } else {
+    // skrin log masuk/pendaftaran - sidebar belum wujud lagi, jadi zoom seluruh kad log masuk selamat
+    document.body.style.zoom = fontScale + '%';
+  }
 }
 function increaseFontSize(){
   fontScale = Math.min(140, fontScale + 10);
@@ -940,6 +945,7 @@ async function doLogin(){
     if(!loaded){ errBox.textContent = 'Gagal muat data daripada backend.'; errBox.style.display='block'; return; }
     renderShell();
     nav('dashboard');
+    applyFontScale(); // #main kini wujud - pastikan zoom kena bahagian kanan sahaja, bukan sidebar
     toast(`Log masuk sebagai ${currentUser.nama} (${currentUser.peranan}).`);
   }catch(err){
     showFatalError(err, 'doLogin');
