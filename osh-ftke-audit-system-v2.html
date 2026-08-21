@@ -1,0 +1,2998 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistem Audit Dalaman OSH · FTKE UTeM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<style>
+  :root{
+    --ink:#10243E;
+    --ink-soft:#1B3A5C;
+    --steel:#2C5C86;
+    --steel-light:#EAF1F7;
+    --paper:#F6F5F1;
+    --paper-card:#FFFFFF;
+    --line:#DAD5C8;
+    --line-soft:#E9E5D9;
+    --amber:#C97A2B;
+    --amber-bg:#FBF0E1;
+    --green:#3F7A55;
+    --green-bg:#E9F2EB;
+    --red:#B23A2E;
+    --red-bg:#FBEAE7;
+    --text:#1E2A33;
+    --text-mute:#5B6773;
+    --radius:10px;
+    --solid:#10243E;
+  }
+  body.dark{
+    --ink:#EAF0F6;
+    --ink-soft:#C9D8E6;
+    --steel:#6FAEDD;
+    --steel-light:#16293B;
+    --paper:#0B1622;
+    --paper-card:#101C2B;
+    --line:#25384C;
+    --line-soft:#1A2839;
+    --amber:#E3A85E;
+    --amber-bg:#3A2C12;
+    --green:#7ACBA0;
+    --green-bg:#12301F;
+    --red:#E58876;
+    --red-bg:#3A1712;
+    --text:#DCE6EF;
+    --text-mute:#8FA3B8;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    line-height:1.5;
+    margin:0;
+  }
+  #app{
+    display:flex;
+    min-height:100vh;
+    width:100%;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .display{font-family:'Space Grotesk',sans-serif;}
+
+  /* ---- code chip (signature element) ---- */
+  .code-chip{
+    display:inline-flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:600;
+    font-size:11px;
+    letter-spacing:.02em;
+    min-width:30px;height:22px;padding:0 6px;
+    border-radius:5px;
+    background:var(--steel-light);
+    color:var(--steel);
+    border:1px solid #CFE0EC;
+  }
+  .code-chip.lg{min-width:38px;height:28px;font-size:13px;}
+  .code-chip.crit{background:var(--red-bg);color:var(--red);border-color:#F0CFC9;}
+
+  /* ---- sidebar ---- */
+  .sidebar{
+    width:222px;flex-shrink:0;
+    background:var(--solid);
+    color:#DCE6EF;
+    display:flex;flex-direction:column;
+    padding:22px 16px;
+    position:sticky;top:0;height:100vh;
+  }
+  .brand{display:flex;align-items:center;gap:9px;margin-bottom:30px;padding:0 4px;}
+  .brand-mark{
+    width:34px;height:34px;border-radius:8px;
+    background:linear-gradient(155deg,var(--steel),#173654);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Grotesk';font-weight:700;font-size:13px;color:#fff;
+    border:1px solid rgba(255,255,255,.12);
+  }
+  .brand-text{font-family:'Space Grotesk';font-weight:600;font-size:14.5px;color:#fff;line-height:1.2;}
+  .brand-text span{display:block;font-family:'Inter';font-weight:400;font-size:10.5px;color:#8FA5B8;letter-spacing:.03em;}
+  .nav-item{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 11px;border-radius:8px;margin-bottom:3px;
+    color:#B7C6D4;font-size:13.5px;font-weight:500;
+    cursor:pointer;border:1px solid transparent;
+    transition:background .12s ease;
+  }
+  .nav-item:hover{background:rgba(255,255,255,.06);}
+  .nav-item.active{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.08);}
+  .nav-dot{width:6px;height:6px;border-radius:50%;background:#4A6178;flex-shrink:0;}
+  .nav-item.active .nav-dot{background:#7FB1D9;}
+  .nav-group-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#5E7488;margin:18px 4px 6px;font-weight:600;}
+  .sidebar-foot{margin-top:auto;padding:12px 8px 4px;border-top:1px solid rgba(255,255,255,.08);font-size:11px;color:#6E8397;}
+
+  /* ---- main ---- */
+  .main{flex:1;min-width:0;padding:28px 34px 60px;max-width:1280px;}
+  .topline{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:10px;}
+  .h1{font-family:'Space Grotesk';font-weight:700;font-size:23px;color:var(--ink);margin:0;}
+  .h1-sub{color:var(--text-mute);font-size:13px;margin-top:3px;}
+  .btn{
+    font-family:'Inter';font-weight:600;font-size:13px;
+    padding:9px 16px;border-radius:8px;border:1px solid var(--line);
+    background:#fff;color:var(--text);cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;
+  }
+  .btn:hover{border-color:#B9C6D0;}
+  .btn.primary{background:var(--solid);color:#fff;border-color:var(--solid);}
+  .btn.primary:hover{background:var(--ink-soft);}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--steel);padding:9px 8px;}
+  .btn.sm{padding:6px 11px;font-size:12px;}
+  .btn.danger{color:var(--red);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  /* ---- cards / grid ---- */
+  .grid{display:grid;gap:16px;}
+  .grid.cols-4{grid-template-columns:repeat(4,1fr);}
+  .grid.cols-2{grid-template-columns:1fr 1fr;}
+  @media(max-width:980px){.grid.cols-4{grid-template-columns:repeat(2,1fr);}.grid.cols-2{grid-template-columns:1fr;}}
+
+  /* ---- responsif telefon bimbit ---- */
+  @media(max-width:780px){
+    #app{ flex-direction:column; }
+    .sidebar{
+      width:100%; height:auto; position:static;
+      flex-direction:row; flex-wrap:wrap; align-items:center;
+      padding:12px 14px; gap:0;
+    }
+    .sidebar .brand{ margin-bottom:0; margin-right:auto; }
+    .sidebar .nav-group-label{ display:none; }
+    .sidebar .nav-item{ margin-bottom:0; padding:7px 9px; font-size:12.5px; }
+    .sidebar-foot{
+      width:100%; margin-top:10px; padding-top:10px;
+      border-top:1px solid rgba(255,255,255,.1);
+    }
+    .main{ padding:18px 16px 50px; }
+    .h1{ font-size:19px; }
+    .topline{ flex-direction:column; align-items:flex-start; }
+    .rail{ gap:6px; }
+    .rail-step{ padding:6px 10px 6px 6px; font-size:11.5px; }
+    table{ font-size:11.5px; }
+    th,td{ padding:7px 8px; }
+  }
+  @media(max-width:480px){
+    .grid.cols-4{ grid-template-columns:1fr 1fr; }
+    .stat-value{ font-size:22px; }
+    .card{ padding:14px 15px; }
+    .scale{ flex-direction:column; align-items:stretch; }
+    .scale label{ justify-content:flex-start; }
+  }
+  .card{
+    background:var(--paper-card);border:1px solid var(--line-soft);
+    border-radius:var(--radius);padding:18px 20px;
+  }
+  .stat-label{font-size:11.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:.04em;font-weight:600;margin-bottom:8px;}
+  .stat-value{font-family:'Space Grotesk';font-size:29px;font-weight:700;color:var(--ink);}
+  .stat-note{font-size:12px;color:var(--text-mute);margin-top:4px;}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;}
+  .badge.green{background:var(--green-bg);color:var(--green);}
+  .badge.amber{background:var(--amber-bg);color:var(--amber);}
+  .badge.red{background:var(--red-bg);color:var(--red);}
+  .badge.grey{background:#EFEDE6;color:#6B6455;}
+
+  .section-title{font-family:'Space Grotesk';font-weight:600;font-size:15px;color:var(--ink);margin:26px 0 12px;display:flex;align-items:center;gap:9px;}
+  .section-title .rule{flex:1;height:1px;background:var(--line);}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--text-mute);font-weight:600;padding:8px 12px;border-bottom:1px solid var(--line);}
+  td{padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tr.clickable:hover{background:var(--steel-light);cursor:pointer;}
+
+  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+  .bar-label{width:150px;flex-shrink:0;font-size:12.5px;color:var(--text);}
+  .bar-track{flex:1;height:9px;background:var(--line-soft);border-radius:5px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:5px;}
+  .bar-val{width:38px;text-align:right;font-family:'IBM Plex Mono';font-size:12px;color:var(--text-mute);}
+
+  select,input[type=text],input[type=date],input[type=time],input[type=number],textarea{
+    width:100%;font-family:'Inter';font-size:13.5px;color:var(--text);
+    padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:var(--paper-card);
+  }
+  select:focus,input:focus,textarea:focus{outline:2px solid #B9D3E6;outline-offset:0;border-color:var(--steel);}
+  label.field-label{display:block;font-size:12px;font-weight:600;color:var(--text-mute);margin-bottom:5px;}
+  .field{margin-bottom:14px;}
+  textarea{resize:vertical;min-height:56px;}
+
+  /* Borang 1 wizard */
+  .rail{display:flex;align-items:center;gap:4px;margin-bottom:26px;flex-wrap:wrap;}
+  .rail-step{
+    display:flex;align-items:center;gap:7px;padding:7px 12px 7px 8px;
+    border-radius:20px;background:#EFEDE6;color:var(--text-mute);font-size:12.5px;font-weight:600;
+    cursor:pointer;border:1px solid transparent;
+  }
+  .rail-step .dot{width:20px;height:20px;border-radius:50%;background:#fff;color:var(--text-mute);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono';font-size:10.5px;}
+  .rail-step.done{background:var(--green-bg);color:var(--green);}
+  .rail-step.done .dot{background:var(--green);color:#fff;}
+  .rail-step.active{background:var(--solid);color:#fff;}
+  .rail-step.active .dot{background:#fff;color:var(--solid);}
+  .rail-arrow{color:var(--line);font-size:12px;}
+
+  .item-row{
+    border:1px solid var(--line-soft);border-radius:9px;padding:14px 16px;margin-bottom:10px;background:var(--paper-card);
+  }
+  .item-row.crit{border-left:3px solid var(--red);}
+  .item-head{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;}
+  .item-text{font-size:13.5px;color:var(--text);flex:1;}
+  .scale{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+  .scale label{
+    display:flex;align-items:center;gap:6px;
+    padding:6px 11px;border:1px solid var(--line);border-radius:7px;
+    font-size:12.5px;font-weight:600;cursor:pointer;color:var(--text-mute);
+  }
+  .scale input{margin:0;accent-color:var(--ink);}
+  .scale label.s2{border-color:#CFE3D6;}
+  .scale label.s1{border-color:#F0DCC0;}
+  .scale label.s0{border-color:#F0CFC9;}
+  .scale input:checked + span{color:inherit;}
+  .scale label:has(input:checked).s2{background:var(--green-bg);color:var(--green);border-color:var(--green);}
+  .scale label:has(input:checked).s1{background:var(--amber-bg);color:var(--amber);border-color:var(--amber);}
+  .scale label:has(input:checked).s0{background:var(--red-bg);color:var(--red);border-color:var(--red);}
+  .scale label:has(input:checked).sna{background:#EFEDE6;color:#6B6455;border-color:#C9C3B4;}
+
+  .wizard-foot{display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--line);}
+
+  /* Borang 2 */
+  .nc-card{background:var(--paper-card);border:1px solid var(--line-soft);border-radius:10px;padding:16px 18px;margin-bottom:14px;position:relative;}
+  .nc-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .nc-num{font-family:'Space Grotesk';font-weight:700;color:var(--ink);font-size:14px;}
+  .photo-drop{
+    border:1.5px dashed var(--line);border-radius:8px;padding:14px;text-align:center;
+    color:var(--text-mute);font-size:12.5px;cursor:pointer;background:var(--paper);
+  }
+  .photo-thumb{width:100%;max-height:170px;object-fit:cover;border-radius:8px;margin-top:8px;border:1px solid var(--line);}
+
+  .critical-list{display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;}
+  @media(max-width:900px){.critical-list{grid-template-columns:1fr;}}
+  .crit-check{display:flex;align-items:flex-start;gap:9px;padding:7px 4px;border-bottom:1px solid var(--line-soft);}
+  .crit-check input{margin-top:3px;accent-color:var(--red);}
+  .crit-check .txt{font-size:12.5px;}
+  .crit-check .txt b{font-weight:600;}
+
+  .callout{background:var(--steel-light);border:1px solid #CFE0EC;border-radius:9px;padding:12px 14px;font-size:12.5px;color:var(--ink-soft);margin-bottom:18px;}
+  .callout.warn{background:var(--amber-bg);border-color:#F0DCC0;color:#8A5419;}
+  .callout b{font-weight:700;}
+
+  .toast{
+    position:fixed;top:20px;right:24px;background:var(--solid);color:#fff;
+    padding:12px 18px;border-radius:9px;font-size:13px;font-weight:500;
+    box-shadow:0 8px 24px rgba(16,36,62,.25);z-index:999;display:none;
+    display:flex;align-items:center;gap:8px;
+  }
+  .empty{padding:30px 10px;text-align:center;color:var(--text-mute);font-size:13px;}
+  .flex-between{display:flex;justify-content:space-between;align-items:center;}
+  hr.soft{border:none;border-top:1px solid var(--line-soft);margin:18px 0;}
+
+  /* ---- login screen ---- */
+  .login-wrap{min-height:100vh;width:100%;display:flex;align-items:center;justify-content:center;background:var(--paper);padding:20px;}
+  .login-card{width:100%;max-width:420px;background:var(--paper-card);border:1px solid var(--line-soft);border-radius:14px;padding:32px 30px;}
+  .login-brand{display:flex;align-items:center;gap:11px;margin-bottom:22px;}
+  .login-sso{
+    display:flex;align-items:center;gap:10px;background:var(--steel-light);border:1px solid #CFE0EC;
+    border-radius:9px;padding:11px 13px;font-size:12.5px;color:var(--ink-soft);margin-bottom:22px;
+  }
+  .acct-btn{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--paper-card);
+    cursor:pointer;margin-bottom:10px;
+  }
+  .acct-btn:hover{border-color:var(--steel);background:var(--steel-light);}
+  .acct-avatar{
+    width:36px;height:36px;border-radius:50%;background:var(--solid);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;font-size:13px;flex-shrink:0;
+  }
+  .acct-name{font-weight:600;font-size:13.5px;color:var(--text);}
+  .acct-email{font-size:11.5px;color:var(--text-mute);}
+  .acct-role{margin-left:auto;}
+  .user-chip{display:flex;align-items:center;gap:9px;padding:9px 8px;border-top:1px solid rgba(255,255,255,.08);margin-top:10px;}
+  .user-chip .acct-avatar{width:30px;height:30px;font-size:11px;background:var(--steel);}
+  .user-chip .uname{font-size:12.5px;color:#fff;font-weight:600;}
+  .user-chip .urole{font-size:10.5px;color:#8FA5B8;}
+  .logout-link{font-size:11px;color:#7FB1D9;cursor:pointer;margin-top:6px;display:inline-block;}
+  .nav-locked{opacity:.35;cursor:not-allowed;}
+  .nav-locked:hover{background:transparent;}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   NOTA: Ini PROTOTAIP DEMO untuk rujukan visual/UX pembangunan
+   Power Apps (rujuk dokumen Blueprint). Data tersimpan tempatan
+   dalam sesi pelayar sahaja (bukan backend sebenar) - dalam
+   Power Apps sebenar nanti, ini digantikan SharePoint Lists
+   ikut struktur dalam dokumen Blueprint.
+   ============================================================ */
+
+/* ============================================================
+   KONFIGURASI BACKEND — WAJIB TUKAR SEBELUM GUNA
+   ============================================================
+   1. Pasang backend ikut arahan dalam fail worker.js (Cloudflare Worker)
+   2. Selepas Deploy, salin URL Worker (cth: https://osh-audit-backend.xxxx.workers.dev)
+   3. Tampal URL tu di bawah, gantikan teks '   https://osh-audit-backend.kaleel83.workers.dev'
+   ============================================================ */
+const CONFIG = {
+  API_URL: 'https://osh-audit-backend.kaleel83.workers.dev',
+};
+
+/* ============ SAMBUNGAN KE BACKEND (Cloudflare Worker) ============ */
+async function apiCall(action, data){
+  if(CONFIG.API_URL.includes('GANTIKAN_DENGAN')){
+    toast('⚠ Backend belum disambung. Sila tetapkan CONFIG.API_URL dalam kod (rujuk arahan worker.js).');
+    throw new Error('API_URL belum ditetapkan');
+  }
+  let res, rawText;
+  try{
+    res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...data })
+    });
+  }catch(networkErr){
+    const msg = `Gagal hubungi backend sepenuhnya (kemungkinan rangkaian/URL salah). Butiran: ${networkErr.message}`;
+    toast('⚠ ' + msg);
+    console.error('apiCall network error:', networkErr);
+    return { ok:false, error: msg };
+  }
+  try{
+    rawText = await res.text();
+  }catch(readErr){
+    toast('⚠ Gagal baca respons daripada backend.');
+    return { ok:false, error:'Gagal baca respons: ' + String(readErr) };
+  }
+  let json;
+  try{
+    json = JSON.parse(rawText);
+  }catch(parseErr){
+    const preview = rawText.slice(0, 300);
+    const msg = `Backend memulangkan respons bukan-JSON (Status HTTP: ${res.status}). Kandungan sebenar diterima:\n\n${preview}`;
+    toast('⚠ Respons backend tidak sah. Sila salin mesej penuh untuk disiasat.');
+    showFatalError(new Error(msg), `apiCall("${action}") — Status ${res.status}`);
+    return { ok:false, error: msg };
+  }
+  if(!json.ok){ toast('⚠ ' + (json.error || 'Ralat tidak diketahui daripada backend.')); }
+  return json;
+}
+async function loadAllDataFromBackend(){
+  const res = await apiCall('getData', {});
+  if(!res.ok) return false;
+  USERS.length = 0;
+  res.users.forEach(u=> USERS.push({...u, aktif: u.aktif===true || u.aktif==='TRUE' || u.aktif==='true'}));
+  STATE.sessions = res.sessions.map(s=>({...s, id:Number(s.id)}));
+  STATE.audits = res.audits.map(a=>({...a, id:Number(a.id), sesiId:Number(a.sesiId)}));
+  STATE.pendingRegistrations = res.registrations.map(r=>({...r, id:Number(r.id)}));
+  const activeSess = STATE.sessions.filter(s=>s.status==='Aktif').sort((a,b)=>b.id-a.id)[0];
+  STATE.activeSessionId = activeSess ? activeSess.id : null;
+  return true;
+}
+
+/* ============ DATA MODEL ============ */
+const SECTIONS = [
+  {code:'A', title:'Pengurusan & Dokumentasi', items:[
+    ['A1','Tanda nama PIC makmal dipamerkan'],
+    ['A2','SOP mesin/ alatan makmal yang berisiko tinggi disediakan'],
+    ['A3','Dokumen HIRARC terkini disemak, diluluskan dan releven dengan aktiviti makmal'],
+    ['A4','Rekod taklimat keselamatan pelajar/penyelidik ada disimpan'],
+    ['A5','Rekod penyelenggaraan dan kalibrasi ada disediakan'],
+    ['A6','Rekod kemalangan/Near Miss ada disediakan'],
+    ['A7','Nombor kecemasan adalah yang terkini'],
+    ['A8','Status Tindakan Susulan Audit Terdahulu (Tutup / Belum Tutup)'],
+  ]},
+  {code:'B', title:'Keadaan Am Makmal', items:[
+    ['B1','Lantai & Laluan Berjalan: Kebersihan terjaga, tiada tumpahan minyak/air, dan tiada bahaya tersimpul (trip hazard)'],
+    ['B2','Pengurusan Kabel (Cable Management): Kabel makmal diikat/disusun kemas menggunakan cable trunking/casing'],
+    ['B3','Penyimpanan Peralatan/Komponen: Rak penyimpanan stabil, barangan berat diletakkan di bahagian bawah'],
+    ['B4','Pencahayaan & Pengudaraan: Pencahayaan cukup terang, suhu bilik selesa (air-cond berfungsi)'],
+    ['B5','Housekeeping memuaskan dan susun atur makmal tidak terlalu padat menghalang laluan'],
+  ]},
+  {code:'C', title:'Keselamatan Elektrik & Elektronik', items:[
+    ['C1','Panel Elektrik Utama / Sub-Panel: Pintu panel dikunci, tiada wayar terdedah, dan berlabel'],
+    ['C2','Kabel & Soket: Tiada kabel terdedah/merekah dan tiada penyambungan berlebihan (Daisy-chaining)'],
+    ['C3','Stesen Pematerian (Soldering): Pemegang besi pemateri selamat, tiada risiko kebakaran'],
+    ['C4','Pendawaian Elektrik di Lantai: Bertutup dengan material bersesuaian / tape khas'],
+    ['C5','Tikar Antistatik (ESD Mat) / Lantai ESD: Dalam keadaan baik dan disambung ke bumi (jika ada)'],
+    ['C6','Sistem Lockout/Tagout (LOTO) atau pengasingan tenaga disediakan (jika berkenaan)'],
+  ]},
+  {code:'D', title:'Peralatan & Mesin', items:[
+    ['D1','Paparan Isyarat Amaran/Bahaya bagi mesin berisiko tinggi dipamerkan jelas'],
+    ['D2','Penghadang Mesin (Machine Guarding) dipasang pada bahagian berputar/berbahaya'],
+    ['D3','Butang Henti Kecemasan (E-Stop) berfungsi, mudah dicapai dan tidak terhalang'],
+    ['D4','Penyedut Wasap (Fume Extractor) berfungsi baik di stesen pematerian/pencucian'],
+    ['D5','Arahan Kerja Selamat (SWP) ditampal bersebelahan mesin berisiko tinggi'],
+  ]},
+  {code:'E', title:'Personal Protective Equipment (PPE)', items:[
+    ['E1','Tanda amaran pemakaian PPE (Notis Mandatori) dipamerkan di pintu masuk'],
+    ['E2','PPE bersesuaian disediakan (kasut keselamatan, cermin mata, gelang ESD)'],
+    ['E3','Pelajar/staf mematuhi pemakaian PPE dan berpakaian sesuai/kemas'],
+    ['E4','PPE yang disediakan diselenggara dan disimpan di tempat yang sesuai'],
+  ]},
+  {code:'F', title:'Kebakaran & Kecemasan', items:[
+    ['F1','Alat Pemadam Api sesuai (CO2/Serbuk Kering), diperiksa, dan tidak terhalang'],
+    ['F2','Laluan Evakuasi & Pintu Kecemasan bebas halangan, lampu "KELUAR" berfungsi'],
+    ['F3','Pelan Evakuasi & titik berkumpul dipamerkan jelas'],
+    ['F4','Peti Pertolongan Cemas lengkap, tiada ubat luput, ada rekod penggunaan'],
+    ['F5','Pengesan Asap (Smoke Detector) & Penggera bersih dan bebas halangan'],
+  ]},
+  {code:'G', title:'Bahan Kimia/Gas & Pengurusan Sisa', items:[
+    ['G1','Helaian Data Keselamatan (SDS) terkini ada untuk setiap bahan kimia/pelarut'],
+    ['G2','Semua bekas bahan kimia dilabel mengikut standard GHS dengan jelas'],
+    ['G3','Kit Tumpahan (Spill Kit) disediakan dan mudah dicapai'],
+    ['G4','Dulang Limpahan (Secondary Containment/Spill Tray) digunakan untuk cecair kimia'],
+    ['G5','Sisa Elektronik (E-Waste) & kimia diasingkan dan dilabel (JAS/DOE)'],
+    ['G6','Silinder Gas Bertekanan diikat teguh pada dinding/troli (jika ada)'],
+  ]},
+];
+function getAllCodes(){ return SECTIONS.flatMap(s=>s.items.map(i=>i[0])); }
+function itemText(code){ for(const s of SECTIONS){ for(const i of s.items){ if(i[0]===code) return i[1]; } } return code; }
+function sectionOf(code){ return SECTIONS.find(s=>code.startsWith(s.code)); }
+
+/* ============ PENGURUSAN STRUKTUR BORANG 1 (Admin sahaja) ============ */
+function nextSectionCode(){
+  let charCode = 65; // 'A'
+  const used = SECTIONS.map(s=>s.code);
+  while(used.includes(String.fromCharCode(charCode)) && charCode < 91) charCode++;
+  return String.fromCharCode(charCode);
+}
+function nextItemCode(sectionCode){
+  const sec = SECTIONS.find(s=>s.code===sectionCode);
+  if(!sec) return sectionCode+'1';
+  let n = 1;
+  const existing = sec.items.map(([c])=>c);
+  while(existing.includes(sectionCode+n)) n++;
+  return sectionCode+n;
+}
+function adminAddSection(){
+  const input = document.getElementById('newSectionTitle');
+  const title = input.value.trim();
+  if(!title){ toast('Sila masukkan nama bahagian.'); return; }
+  const code = nextSectionCode();
+  SECTIONS.push({code, title, items:[]});
+  input.value = '';
+  toast(`Bahagian ${code}. ${title} ditambah. Sila tambah sekurang-kurangnya satu item.`);
+  renderAdmin();
+}
+function adminUpdateSectionTitle(code, newTitle){
+  const sec = SECTIONS.find(s=>s.code===code);
+  if(sec && newTitle.trim()){ sec.title = newTitle.trim(); toast(`Tajuk Bahagian ${code} dikemas kini.`); }
+}
+function adminDeleteSection(code){
+  const sec = SECTIONS.find(s=>s.code===code);
+  if(!sec) return;
+  showConfirmModal(`Padam bahagian <b>${sec.code}. ${sec.title}</b> beserta ${sec.items.length} item di dalamnya? Skor sedia ada bagi item-item ini pada semua rekod audit akan hilang daripada pengiraan dan paparan laporan. Tindakan ini tidak boleh dibatalkan.`, function(){
+    const idx = SECTIONS.findIndex(s=>s.code===code);
+    if(idx>-1) SECTIONS.splice(idx,1);
+    const removedCodes = sec.items.map(([c])=>c);
+    STATE.admin.criticalItems = STATE.admin.criticalItems.filter(c=>!removedCodes.includes(c));
+    toast(`Bahagian ${sec.code} dan ${sec.items.length} item dipadam.`);
+    renderAdmin();
+  });
+}
+function adminAddItem(sectionCode){
+  const input = document.getElementById('newItemText-'+sectionCode);
+  const text = input.value.trim();
+  if(!text){ toast('Sila masukkan teks item.'); return; }
+  const sec = SECTIONS.find(s=>s.code===sectionCode);
+  if(!sec) return;
+  const code = nextItemCode(sectionCode);
+  sec.items.push([code, text]);
+  input.value = '';
+  toast(`Item ${code} ditambah pada Bahagian ${sectionCode}.`);
+  renderAdmin();
+}
+function adminUpdateItemText(sectionCode, itemCode, newText){
+  const sec = SECTIONS.find(s=>s.code===sectionCode);
+  if(!sec || !newText.trim()) return;
+  const item = sec.items.find(i=>i[0]===itemCode);
+  if(item){ item[1] = newText.trim(); toast(`Item ${itemCode} dikemas kini.`); }
+}
+function adminDeleteItem(sectionCode, itemCode){
+  const sec = SECTIONS.find(s=>s.code===sectionCode);
+  if(!sec) return;
+  if(sec.items.length<=1){ toast('Bahagian mesti ada sekurang-kurangnya 1 item. Padam keseluruhan bahagian sebaliknya.'); return; }
+  showConfirmModal(`Padam item <b>${itemCode}</b>? Skor sedia ada bagi item ini pada semua rekod audit akan hilang daripada pengiraan.`, function(){
+    sec.items = sec.items.filter(i=>i[0]!==itemCode);
+    STATE.admin.criticalItems = STATE.admin.criticalItems.filter(c=>c!==itemCode);
+    toast(`Item ${itemCode} dipadam.`);
+    renderAdmin();
+  });
+}
+
+const CRITICAL_DEFAULT = ['A2','A3','A6','A7','C1','C6','D2','D3','F1','F2','F4','G1','G3','G6'];
+const CRITICAL_RATIONALE = {
+  A2:'Tiada SOP = risiko operasi mesin tanpa panduan selamat.',
+  A3:'HIRARC ialah asas penilaian risiko berkanun (Akta 514).',
+  A6:'Rekod kemalangan/near-miss wajib untuk siasatan & trend risiko.',
+  A7:'Nombor kecemasan lapuk melambatkan tindak balas kecemasan.',
+  C1:'Panel elektrik terdedah = risiko kejutan elektrik/kebakaran serius.',
+  C6:'LOTO mengelak kecederaan semasa penyelenggaraan mesin.',
+  D2:'Machine guarding mencegah kecederaan anggota badan.',
+  D3:'E-Stop tidak berfungsi = tiada cara henti kecemasan.',
+  F1:'Alat pemadam api ialah baris pertahanan pertama kebakaran.',
+  F2:'Laluan evakuasi tersekat mengancam nyawa semasa kecemasan.',
+  F4:'Peti pertolongan cemas kritikal untuk kecederaan segera.',
+  G1:'SDS wajib untuk pengendalian bahan kimia yang selamat.',
+  G3:'Spill kit perlu untuk kawal tumpahan kimia segera.',
+  G6:'Silinder gas tidak terikat berisiko tumbang/pecah injap.',
+};
+
+function seedItems(overrides){
+  // Guna HANYA untuk data demo/contoh (audit sedia ada) - bukan borang baharu
+  const items = {};
+  getAllCodes().forEach(c => items[c] = {skor:'2', catatan:''});
+  Object.entries(overrides||{}).forEach(([k,v])=> items[k] = {skor:String(v), catatan: ITEM_NOTE_HINT[k]||''});
+  return items;
+}
+function blankItems(){
+  // Guna untuk borang audit BAHARU - semua item bermula kosong, auditor kena jawab setiap satu
+  const items = {};
+  getAllCodes().forEach(c => items[c] = {skor:null, catatan:''});
+  return items;
+}
+const ITEM_NOTE_HINT = {};
+
+/* ============ PENGGUNA & PERANAN ============
+   Dalam sistem sebenar (Power Apps), senarai ini ialah SharePoint List "Senarai Pengguna"
+   yang memetakan e-mel akaun Microsoft 365 sedia ada -> peranan. Pengguna TIDAK create
+   password baharu - mereka log masuk dengan akaun UTeM 365 mereka (SSO), dan app hanya
+   mencari e-mel itu dalam senarai ini untuk tentukan apa yang boleh dilihat/dibuat. */
+let USERS = []; // dimuat daripada SharePoint List "Senarai Pengguna" semasa initApp()
+let currentUser = null;
+let currentTheme = 'light';
+
+/* ============ SESI AUDIT ============ */
+function getActiveSession(){
+  return STATE.sessions.find(s=>s.id===STATE.activeSessionId) || null;
+}
+function sessionName(id){
+  const s = STATE.sessions.find(x=>x.id===id);
+  return s ? s.nama : '(Sesi dipadam)';
+}
+async function adminCreateSession(){
+  const input = document.getElementById('newSessionName');
+  const nama = input.value.trim();
+  if(!nama){ toast('Sila masukkan nama sesi audit.'); return; }
+  const tarikhMula = new Date().toISOString().slice(0,10);
+  const res = await apiCall('saveSession', { session:{ nama, tarikhMula, status:'Aktif' } });
+  if(!res.ok) return;
+  STATE.sessions.push({id:res.id, nama, tarikhMula, status:'Aktif'});
+  STATE.activeSessionId = res.id;
+  input.value = '';
+  toast(`Sesi "${nama}" dicipta dan dijadikan sesi semasa.`);
+  renderAdmin();
+}
+function adminSetActiveSession(id){
+  const s = STATE.sessions.find(x=>x.id===id);
+  if(!s) return;
+  if(s.status==='Selesai'){ toast('Sesi ini telah ditandakan selesai. Buka semula dahulu jika mahu jadikan aktif.'); return; }
+  STATE.activeSessionId = id;
+  toast(`"${s.nama}" kini sesi semasa untuk audit baharu.`);
+  renderAdmin();
+}
+async function adminToggleSessionStatus(id){
+  const s = STATE.sessions.find(x=>x.id===id);
+  if(!s) return;
+  const newStatus = s.status==='Aktif' ? 'Selesai' : 'Aktif';
+  const res = await apiCall('saveSession', { session:{ id:s.id, nama:s.nama, tarikhMula:s.tarikhMula, status:newStatus } });
+  if(!res.ok) return;
+  s.status = newStatus;
+  toast(`Sesi "${s.nama}" ditandakan ${s.status}.`);
+  renderAdmin();
+}
+function adminDeleteSession(id){
+  const s = STATE.sessions.find(x=>x.id===id);
+  if(!s) return;
+  const affected = STATE.audits.filter(a=>a.sesiId===id).length;
+  const msg = affected>0
+    ? `Padam sesi <b>"${s.nama}"</b>? <b>${affected} rekod audit</b> (termasuk draf) di bawah sesi ini akan turut dipadam SEPENUHNYA dan tidak lagi kelihatan kepada mana-mana pengguna, termasuk Admin. Tindakan ini tidak boleh dibatalkan.`
+    : `Padam sesi <b>"${s.nama}"</b>? Tiada rekod audit terlibat.`;
+  showConfirmModal(msg, async function(){
+    const res = await apiCall('deleteSession', { id: s.id });
+    if(!res.ok) return;
+    STATE.audits = STATE.audits.filter(a=>a.sesiId!==id);
+    STATE.sessions = STATE.sessions.filter(x=>x.id!==id);
+    if(STATE.activeSessionId===id) STATE.activeSessionId = null;
+    toast(`Sesi "${s.nama}" dan ${affected} rekod berkaitan telah dipadam.`);
+    renderAdmin();
+  }, {confirmLabel:'🗑 Ya, Padam Sepenuhnya'});
+}
+function toggleTheme(){
+  currentTheme = currentTheme==='light' ? 'dark' : 'light';
+  document.body.classList.toggle('dark', currentTheme==='dark');
+  document.querySelectorAll('.theme-toggle-btn').forEach(btn=>{
+    btn.textContent = currentTheme==='dark' ? '☀️ Mod Cerah' : '🌙 Mod Gelap';
+  });
+}
+function initials(name){ return name.replace(/^(Ir\.|Dr\.|En\.|Pn\.)\s*/,'').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
+function isAdmin(){ return currentUser && currentUser.peranan === 'Admin'; }
+
+/* ============ PENGURUSAN PENGGUNA (Admin sahaja) ============ */
+async function adminAddUser(){
+  const nama = document.getElementById('newUserNama').value.trim();
+  const email = document.getElementById('newUserEmail').value.trim().toLowerCase();
+  const password = document.getElementById('newUserPassword').value;
+  const peranan = document.getElementById('newUserPeranan').value;
+  const kampus = document.getElementById('newUserKampus').value;
+  if(!nama || !email || !password){ toast('Sila isi nama, e-mel dan kata laluan.'); return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Format e-mel tidak sah.'); return; }
+  if(password.length<6){ toast('Kata laluan mesti sekurang-kurangnya 6 aksara.'); return; }
+  if(USERS.some(u=>u.email===email)){ toast('E-mel ini sudah wujud dalam Senarai Pengguna.'); return; }
+  const res = await apiCall('createUser', { email, nama, password, peranan, kampus });
+  if(!res.ok) return;
+  USERS.push({id:res.id, email, nama, peranan, kampus, aktif:true});
+  document.getElementById('newUserNama').value='';
+  document.getElementById('newUserEmail').value='';
+  document.getElementById('newUserPassword').value='';
+  toast(`Pengguna "${nama}" (${peranan}) ditambah ke Senarai Pengguna.`);
+  renderAdminUsers();
+}
+async function adminUpdateUserRole(id, newRole){
+  const u = USERS.find(x=>x.id===id);
+  if(!u) return;
+  if(u.peranan==='Admin' && newRole!=='Admin'){
+    const otherAdmins = USERS.filter(x=>x.peranan==='Admin' && x.id!==id && x.aktif!==false);
+    if(!otherAdmins.length){ toast('Tidak boleh — sekurang-kurangnya seorang Admin aktif mesti kekal.'); renderAdminUsers(); return; }
+  }
+  const res = await apiCall('saveUser', { id, field:'peranan', value:newRole });
+  if(!res.ok) return;
+  u.peranan = newRole;
+  toast(`Peranan ${u.nama} ditukar kepada ${newRole}.`);
+}
+async function adminUpdateUserKampus(id, kampus){
+  const u = USERS.find(x=>x.id===id);
+  if(!u) return;
+  const res = await apiCall('saveUser', { id, field:'kampus', value:kampus });
+  if(!res.ok) return;
+  u.kampus = kampus;
+  toast(`Kampus ditugaskan untuk ${u.nama} dikemas kini.`);
+}
+async function adminToggleUserAktif(id){
+  const u = USERS.find(x=>x.id===id);
+  if(!u) return;
+  if(u.aktif!==false && u.peranan==='Admin'){
+    const otherActiveAdmins = USERS.filter(x=>x.peranan==='Admin' && x.id!==id && x.aktif!==false);
+    if(!otherActiveAdmins.length){ toast('Tidak boleh nyahaktifkan — ini satu-satunya Admin aktif.'); return; }
+  }
+  const newAktif = u.aktif===false ? true : false;
+  const res = await apiCall('saveUser', { id, field:'aktif', value:newAktif });
+  if(!res.ok) return;
+  u.aktif = newAktif;
+  toast(`Akaun ${u.nama} ${u.aktif?'diaktifkan':'dinyahaktifkan'}.`);
+  renderAdminUsers();
+}
+function adminDeleteUser(id){
+  const u = USERS.find(x=>x.id===id);
+  if(!u) return;
+  if(u.id===currentUser.id){ toast('Anda tidak boleh padam akaun sendiri.'); return; }
+  if(u.peranan==='Admin'){
+    const otherAdmins = USERS.filter(x=>x.peranan==='Admin' && x.id!==id);
+    if(!otherAdmins.length){ toast('Tidak boleh padam — ini satu-satunya Admin dalam sistem.'); return; }
+  }
+  const ownedAudits = STATE.audits.filter(a=>a.emailAuditor===u.email).length;
+  const msg = `Padam pengguna <b>"${u.nama}"</b> (${u.email}) daripada Senarai Pengguna? Mereka tidak lagi boleh log masuk.${ownedAudits>0 ? ` <br><br>⚠ Nota: ${ownedAudits} rekod audit sedia ada dicipta oleh pengguna ini akan KEKAL dalam sistem (tidak dipadam) untuk tujuan rekod, tetapi tidak lagi boleh diselenggara oleh pemiliknya.` : ''}`;
+  showConfirmModal(msg, async function(){
+    const res = await apiCall('deleteUser', { id });
+    if(!res.ok) return;
+    const idx = USERS.findIndex(x=>x.id===id);
+    if(idx>-1) USERS.splice(idx,1);
+    toast(`Pengguna "${u.nama}" dipadam daripada Senarai Pengguna.`);
+    renderAdminUsers();
+  }, {confirmLabel:'🗑 Ya, Padam Pengguna'});
+}
+async function adminApproveRegistration(id){
+  const r = STATE.pendingRegistrations.find(x=>x.id===id);
+  if(!r) return;
+  const role = document.getElementById('approveRole-'+id).value;
+  if(USERS.some(u=>u.email===r.email)){ toast('E-mel ini sudah wujud dalam Senarai Pengguna.'); return; }
+  const res = await apiCall('approveRegistration', { id, peranan: role });
+  if(!res.ok) return;
+  USERS.push({id: Date.now(), email:r.email, nama:r.nama, peranan:role, kampus:r.kampus, aktif:true});
+  STATE.pendingRegistrations = STATE.pendingRegistrations.filter(x=>x.id!==id);
+  toast(`${r.nama} diterima sebagai ${role}.`);
+  await loadAllDataFromBackend();
+  renderAdminUsers();
+}
+async function adminRejectRegistration(id){
+  const r = STATE.pendingRegistrations.find(x=>x.id===id);
+  if(!r) return;
+  const res = await apiCall('rejectRegistration', { id });
+  if(!res.ok) return;
+  STATE.pendingRegistrations = STATE.pendingRegistrations.filter(x=>x.id!==id);
+  toast(`Permohonan ${r.nama} ditolak.`);
+  renderAdminUsers();
+}
+
+let nextId = 1;
+let nextSessionId = 1;
+const STATE = {
+  admin: { teknologi: 6, induk: 9, criticalItems: [...CRITICAL_DEFAULT], deletePassword: 'osh1234' },
+  sessions: [],
+  activeSessionId: null,
+  pendingRegistrations: [],
+  audits: [],
+};
+
+/* ============ SCORING ============ */
+function computeScore(items){
+  let sum=0, max=0;
+  getAllCodes().forEach(c=>{
+    const v = items[c] ? items[c].skor : null;
+    if(v===null || v===undefined || v==='NA') return; // belum dijawab ATAU NA - tak dikira dalam skor
+    max += 2;
+    sum += Number(v);
+  });
+  const pct = max===0 ? 0 : (sum/max*100);
+  let status='TIDAK MEMUASKAN', cls='red';
+  if(pct>=90){status='CEMERLANG';cls='green';}
+  else if(pct>=80){status='BAIK';cls='green';}
+  else if(pct>=70){status='MEMUASKAN';cls='amber';}
+  else if(pct>=50){status='PERLU PENAMBAHBAIKAN';cls='amber';}
+  else {status='TIDAK MEMUASKAN';cls='red';}
+  return {sum,max,pct,status,cls};
+}
+function countUnanswered(items){
+  return getAllCodes().filter(c => !items[c] || items[c].skor===null || items[c].skor===undefined).length;
+}
+function hasCriticalFail(items){
+  return STATE.admin.criticalItems.some(c => items[c] && items[c].skor==='0');
+}
+function fmtDate(dt){
+  if(!dt) return '-';
+  const d = new Date(dt);
+  if(isNaN(d)) return dt;
+  return d.toLocaleString('ms-MY', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+/* ============ LOGIN (simulasi SSO Microsoft 365) ============ */
+/* ============ SSO OTOMATIK — semak pengguna semasa terus semasa app dimuat ============
+   Dalam persekitaran SharePoint sebenar, TIADA skrin log masuk manual — pengguna
+   sudah disahkan oleh Microsoft 365 (SSO). App cuma perlu semak e-mel mereka
+   wujud & aktif dalam Senarai Pengguna, kemudian terus masuk. */
+let loginScreenMode = 'login'; // 'login' | 'register' | 'submitted'
+function renderLogin(){
+  let body = '';
+  if(loginScreenMode==='register'){
+    body = `
+      <div style="font-size:11.5px;font-weight:600;color:var(--text-mute);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Mohon Pendaftaran Akaun Baharu</div>
+      <div class="field">
+        <label class="field-label">Nama Penuh</label>
+        <input type="text" id="regNama" placeholder="cth. En. Ahmad Fauzi">
+      </div>
+      <div class="field">
+        <label class="field-label">E-mel</label>
+        <input type="text" id="regEmail" placeholder="ahmad.fauzi@utem.edu.my">
+      </div>
+      <div class="field">
+        <label class="field-label">Kata Laluan</label>
+        <input type="password" id="regPassword" placeholder="Sekurang-kurangnya 6 aksara">
+      </div>
+      <div class="field">
+        <label class="field-label">Sahkan Kata Laluan</label>
+        <input type="password" id="regPassword2" placeholder="Taip semula kata laluan">
+      </div>
+      <div class="field">
+        <label class="field-label">Kampus</label>
+        <select id="regKampus">
+          <option>Kampus Teknologi</option>
+          <option>Kampus Induk</option>
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label class="field-label">Jawatan / Catatan (pilihan)</label>
+        <textarea id="regAlasan" placeholder="cth. Pensyarah/Penyelia Makmal, ingin menjadi Auditor OSH"></textarea>
+      </div>
+      <div id="regError" style="color:var(--red);font-size:12.5px;margin-top:10px;display:none;background:var(--red-bg);padding:9px 11px;border-radius:7px;"></div>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button class="btn" onclick="loginScreenMode='login'; renderLogin();">← Batal</button>
+        <button class="btn primary" id="regSubmitBtn" onclick="submitRegistrationRequest()">Hantar Permohonan</button>
+      </div>`;
+  } else if(loginScreenMode==='submitted'){
+    body = `
+      <div class="callout" style="margin-bottom:16px;">✅ <b>Permohonan anda telah dihantar.</b> Sila tunggu kelulusan daripada Admin (Pengerusi OSH). Anda akan boleh log masuk sebaik akaun anda diluluskan.</div>
+      <button class="btn primary" style="width:100%;justify-content:center;" onclick="loginScreenMode='login'; renderLogin();">← Kembali ke Log Masuk</button>`;
+  } else {
+    body = `
+      <div class="field">
+        <label class="field-label">E-mel</label>
+        <input type="text" id="loginEmail" placeholder="nama@utem.edu.my" onkeydown="if(event.key==='Enter') document.getElementById('loginPassword').focus()">
+      </div>
+      <div class="field" style="margin-bottom:10px;">
+        <label class="field-label">Kata Laluan</label>
+        <input type="password" id="loginPassword" placeholder="Kata laluan" onkeydown="if(event.key==='Enter') doLogin()">
+      </div>
+      <div id="loginError" style="color:var(--red);font-size:12.5px;margin-bottom:10px;display:none;"></div>
+      <button class="btn primary" id="loginSubmitBtn" style="width:100%;justify-content:center;" onclick="doLogin()">Log Masuk</button>
+      <hr class="soft">
+      <button class="btn" style="width:100%;justify-content:center;" onclick="loginScreenMode='register'; renderLogin();">📝 Belum Ada Akaun? Mohon Pendaftaran</button>`;
+  }
+  document.getElementById('app').innerHTML = `
+    <div class="login-wrap">
+      <div class="login-card">
+        <div class="login-brand" style="justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:11px;">
+            <div class="brand-mark">OSH</div>
+            <div class="brand-text" style="color:var(--ink);">Sistem Audit OSH<span style="color:var(--text-mute);">FTKE · UTeM</span></div>
+          </div>
+          <button class="btn sm theme-toggle-btn" onclick="toggleTheme()">${currentTheme==='dark'?'☀️ Mod Cerah':'🌙 Mod Gelap'}</button>
+        </div>
+        ${body}
+      </div>
+    </div>`;
+  const emailField = document.getElementById('loginEmail');
+  if(emailField) emailField.focus();
+}
+async function submitRegistrationRequest(){
+  const errBox = document.getElementById('regError');
+  errBox.style.display = 'none';
+  const nama = document.getElementById('regNama').value.trim();
+  const email = document.getElementById('regEmail').value.trim().toLowerCase();
+  const password = document.getElementById('regPassword').value;
+  const password2 = document.getElementById('regPassword2').value;
+  const kampus = document.getElementById('regKampus').value;
+  const alasan = document.getElementById('regAlasan').value.trim();
+  function showRegError(msg){ errBox.textContent = msg; errBox.style.display = 'block'; }
+  if(!nama || !email || !password){ showRegError('Sila isi nama, e-mel dan kata laluan.'); return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showRegError('Format e-mel tidak sah.'); return; }
+  if(password.length<6){ showRegError('Kata laluan mesti sekurang-kurangnya 6 aksara.'); return; }
+  if(password!==password2){ showRegError('Kata laluan dan sahkan kata laluan tidak sepadan.'); return; }
+  const btn = document.getElementById('regSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Menghantar...';
+  try{
+    const res = await apiCall('register', { nama, email, password, kampus, alasan });
+    if(!res || !res.ok){
+      showRegError((res && res.error) || 'Permohonan gagal dihantar. Sila semak sambungan internet dan cuba lagi.');
+      return;
+    }
+    loginScreenMode = 'submitted';
+    renderLogin();
+  }catch(err){
+    showRegError('Ralat tidak dijangka: ' + (err && err.message ? err.message : String(err)));
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Hantar Permohonan'; }
+  }
+}
+async function doLogin(){
+  const emailField = document.getElementById('loginEmail');
+  const pwField = document.getElementById('loginPassword');
+  const errBox = document.getElementById('loginError');
+  const email = emailField.value.trim().toLowerCase();
+  const password = pwField.value;
+  errBox.style.display = 'none';
+  if(!email || !password){ errBox.textContent = 'Sila isi e-mel dan kata laluan.'; errBox.style.display='block'; return; }
+  const btn = document.getElementById('loginSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Log masuk...';
+  try{
+    const res = await apiCall('login', { email, password });
+    if(!res.ok){
+      errBox.textContent = res.error || 'Log masuk gagal.';
+      errBox.style.display = 'block';
+      return;
+    }
+    currentUser = res.user;
+    toast(`Memuatkan data...`);
+    const loaded = await loadAllDataFromBackend();
+    if(!loaded){ errBox.textContent = 'Gagal muat data daripada backend.'; errBox.style.display='block'; return; }
+    renderShell();
+    nav('dashboard');
+    toast(`Log masuk sebagai ${currentUser.nama} (${currentUser.peranan}).`);
+  }catch(err){
+    showFatalError(err, 'doLogin');
+  }finally{
+    btn.disabled = false; btn.textContent = 'Log Masuk';
+  }
+}
+function doLogout(){
+  currentUser = null;
+  renderLogin();
+}
+
+/* ============ APP SHELL (sidebar berpandukan peranan) ============ */
+function renderShell(){
+  document.getElementById('app').innerHTML = `
+    <div class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">OSH</div>
+        <div class="brand-text">FTKE Audit<span>UTeM · Keselamatan Makmal</span></div>
+      </div>
+      <div class="nav-group-label">Pantau</div>
+      <div class="nav-item" data-view="dashboard" onclick="nav('dashboard')"><span class="nav-dot"></span> Dashboard Ringkasan</div>
+      <div class="nav-group-label">Audit</div>
+      <div class="nav-item" data-view="borang1" onclick="nav('borang1')"><span class="nav-dot"></span> Borang 1 · Checklist</div>
+      <div class="nav-item" data-view="borang2" onclick="nav('borang2')"><span class="nav-dot"></span> Borang 2 · Laporan NC/OFI</div>
+      <div class="nav-group-label">Tetapan Admin</div>
+      <div class="nav-item ${isAdmin()?'':'nav-locked'}" data-view="admin" onclick="${isAdmin()?"nav('admin')":"toast('Hanya Admin boleh akses halaman ini.')"}">
+        <span class="nav-dot"></span> Pengurusan Audit ${isAdmin()?'':'🔒'}
+      </div>
+      <div class="nav-item ${isAdmin()?'':'nav-locked'}" data-view="adminUsers" onclick="${isAdmin()?"nav('adminUsers')":"toast('Hanya Admin boleh akses halaman ini.')"}">
+        <span class="nav-dot"></span> Pengurusan Pengguna ${isAdmin()?'':'🔒'}
+        ${isAdmin() && STATE.pendingRegistrations.length ? `<span class="badge red" style="margin-left:6px;">${STATE.pendingRegistrations.length}</span>` : ''}
+      </div>
+      <div class="sidebar-foot">
+        <button class="btn sm theme-toggle-btn" style="width:100%;justify-content:center;margin-bottom:10px;background:rgba(255,255,255,.06);color:#DCE6EF;border-color:rgba(255,255,255,.14);" onclick="toggleTheme()">${currentTheme==='dark'?'☀️ Mod Cerah':'🌙 Mod Gelap'}</button>
+        <div class="user-chip">
+          <div class="acct-avatar">${initials(currentUser.nama)}</div>
+          <div>
+            <div class="uname">${currentUser.nama}</div>
+            <div class="urole">${currentUser.peranan}</div>
+          </div>
+        </div>
+        <span class="logout-link" onclick="doLogout()">← Log Keluar</span>
+      </div>
+    </div>
+    <div class="main" id="main"></div>
+    <div id="auditDetailModalHost"></div>
+  `;
+}
+
+/* ============ NAV / RENDER SWITCH ============ */
+let currentView = 'dashboard';
+function nav(view){
+  try{
+    if((view==='admin' || view==='adminUsers') && !isAdmin()){ toast('Hanya Admin boleh akses halaman ini.'); view='dashboard'; }
+    if(view==='borang1' && !b1 && !getActiveSession()){
+      toast('Tiada sesi audit aktif. Audit baharu tidak boleh dimulakan buat masa ini.');
+      view = 'dashboard';
+    }
+    currentView = view;
+    document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active', el.dataset.view===view));
+    if(view==='dashboard') renderDashboard();
+    if(view==='admin') renderAdmin();
+    if(view==='adminUsers') renderAdminUsers();
+    if(view==='borang1') renderBorang1();
+    if(view==='borang2') renderBorang2();
+  }catch(err){
+    showFatalError(err, 'nav("'+view+'")');
+  }
+}
+function showConfirmModal(message, onConfirm, opts){
+  opts = opts || {};
+  const host = document.getElementById('auditDetailModalHost') || document.getElementById('app');
+  const confirmLabel = opts.confirmLabel || 'Ya, Teruskan';
+  const requirePw = opts.requirePassword !== false; // default: wajib kata laluan bagi tindakan padam
+  window.__confirmCallback = onConfirm;
+  host.innerHTML = `
+    <div style="position:fixed;inset:0;background:rgba(16,36,62,.5);z-index:950;display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="background:var(--paper-card);border-radius:12px;max-width:440px;width:100%;padding:24px 26px;border:1px solid var(--line-soft);">
+        <div style="font-family:'Space Grotesk';font-weight:700;font-size:16px;color:var(--red);margin-bottom:10px;">⚠ Sila Sahkan</div>
+        <div style="font-size:13.5px;color:var(--text);line-height:1.6;margin-bottom:16px;">${message}</div>
+        ${requirePw ? `
+        <div class="field" style="margin-bottom:4px;">
+          <label class="field-label">Kata Laluan Pengesahan Padam</label>
+          <input type="password" id="confirmPwInput" placeholder="Masukkan kata laluan pengesahan" onkeydown="if(event.key==='Enter') attemptConfirmModal(true)">
+        </div>
+        <div id="confirmPwError" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;">Kata laluan salah. Sila cuba lagi.</div>` : ''}
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:${requirePw?'6px':'20px'};">
+          <button class="btn" onclick="document.getElementById('auditDetailModalHost').innerHTML=''">Batal</button>
+          <button class="btn" style="background:var(--red);color:#fff;border-color:var(--red);" onclick="attemptConfirmModal(${requirePw})">${confirmLabel}</button>
+        </div>
+      </div>
+    </div>`;
+  if(requirePw) setTimeout(()=>{ const el=document.getElementById('confirmPwInput'); if(el) el.focus(); }, 50);
+}
+function attemptConfirmModal(requirePw){
+  if(requirePw){
+    const pwInput = document.getElementById('confirmPwInput');
+    if(!pwInput || pwInput.value !== STATE.admin.deletePassword){
+      const err = document.getElementById('confirmPwError');
+      if(err) err.style.display = 'block';
+      if(pwInput){ pwInput.value=''; pwInput.focus(); }
+      return;
+    }
+  }
+  window.__confirmCallback();
+  const host = document.getElementById('auditDetailModalHost');
+  if(host) host.innerHTML = '';
+}
+function showFatalError(err, where){
+  const target = document.getElementById('main') || document.getElementById('app');
+  if(!target) { console.error(err); return; }
+  target.innerHTML = `
+    <div style="max-width:640px;margin:40px auto;background:#FBEAE7;border:1px solid #F0CFC9;border-radius:12px;padding:24px 26px;">
+      <div style="font-family:'Space Grotesk';font-weight:700;font-size:16px;color:#B23A2E;margin-bottom:8px;">⚠ Ralat semasa memaparkan skrin</div>
+      <div style="font-size:13px;color:#7A2E24;margin-bottom:10px;">Berlaku ralat teknikal di <code>${where}</code>. Sila salin mesej di bawah dan hantar kepada pembangun untuk disiasat:</div>
+      <pre style="background:#fff;border:1px solid #F0CFC9;border-radius:8px;padding:12px;font-size:11.5px;white-space:pre-wrap;color:#333;">${(err && err.stack) ? err.stack : String(err)}</pre>
+      <button class="btn" style="margin-top:12px;" onclick="location.reload()">Muat Semula Halaman</button>
+    </div>`;
+  console.error(err);
+}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display='flex';
+  clearTimeout(window.__toastT);
+  window.__toastT = setTimeout(()=>{t.style.display='none';}, 3200);
+}
+
+/* ============ DASHBOARD ============ */
+let dashboardSessionFilter = null; // null = ikut sesi semasa/terkini secara automatik
+let dashboardCampusFilter = 'Semua'; // 'Semua' | 'Kampus Teknologi' | 'Kampus Induk'
+function dashboardFocusSessionId(){
+  if(dashboardSessionFilter !== null) return dashboardSessionFilter;
+  if(STATE.activeSessionId) return STATE.activeSessionId;
+  const sorted = [...STATE.sessions].sort((a,b)=>b.id-a.id);
+  return sorted.length ? sorted[0].id : null;
+}
+function campusStats(kampus, sesiId){
+  const base = isAdmin() ? STATE.audits : STATE.audits.filter(a=>a.emailAuditor===currentUser.email);
+  const list = base.filter(a=>a.kampus===kampus && a.sesiId===sesiId);
+  const capacity = kampus==='Kampus Teknologi' ? STATE.admin.teknologi : STATE.admin.induk;
+  const scored = list.map(a=>computeScore(a.items));
+  const avg = scored.length ? scored.reduce((s,x)=>s+x.pct,0)/scored.length : 0;
+  const critCount = list.filter(a=>hasCriticalFail(a.items)).length;
+  const dist = {CEMERLANG:0,BAIK:0,MEMUASKAN:0,'PERLU PENAMBAHBAIKAN':0,'TIDAK MEMUASKAN':0};
+  scored.forEach(s=>dist[s.status]++);
+  return {capacity, audited:list.length, avg, critCount, dist};
+}
+
+function renderDashboard(){
+  const sortedSessions = [...STATE.sessions].sort((a,b)=>b.id-a.id); // terkini dahulu
+  const defaultSessionId = STATE.activeSessionId || (sortedSessions.length ? sortedSessions[0].id : null);
+  const focusSessionId = dashboardSessionFilter !== null ? dashboardSessionFilter : defaultSessionId;
+  const focusSession = STATE.sessions.find(s=>s.id===focusSessionId) || null;
+
+  const all = (isAdmin() ? STATE.audits : STATE.audits.filter(a=>a.emailAuditor===currentUser.email))
+    .filter(a=>a.sesiId===focusSessionId)
+    .filter(a=>dashboardCampusFilter==='Semua' || a.kampus===dashboardCampusFilter);
+  const allScored = all.map(a=>computeScore(a.items));
+  const totalCapacity = dashboardCampusFilter==='Kampus Teknologi' ? STATE.admin.teknologi
+    : dashboardCampusFilter==='Kampus Induk' ? STATE.admin.induk
+    : STATE.admin.teknologi + STATE.admin.induk;
+  const overallAvg = allScored.length ? allScored.reduce((s,x)=>s+x.pct,0)/allScored.length : 0;
+  const criticalCount = all.filter(a=>hasCriticalFail(a.items)).length;
+  const totalNC = all.reduce((s,a)=>s+a.nc.length, 0);
+  const totalOFI = all.reduce((s,a)=>s+a.ofi.length, 0);
+  const tek = campusStats('Kampus Teknologi', focusSessionId);
+  const ind = campusStats('Kampus Induk', focusSessionId);
+
+  const statusColor = {CEMERLANG:'var(--green)',BAIK:'var(--green)',MEMUASKAN:'var(--amber)','PERLU PENAMBAHBAIKAN':'var(--amber)','TIDAK MEMUASKAN':'var(--red)'};
+
+  function campusCard(name, s){
+    const rows = Object.entries(s.dist).map(([k,v])=>`
+      <div class="bar-row">
+        <div class="bar-label">${k}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${s.audited? (v/s.audited*100):0}%;background:${statusColor[k]}"></div></div>
+        <div class="bar-val">${v}</div>
+      </div>`).join('');
+    return `
+    <div class="card">
+      <div class="flex-between" style="margin-bottom:14px;">
+        <div class="display" style="font-weight:600;font-size:15px;color:var(--ink);">${name}</div>
+        <span class="badge grey">${s.audited}/${s.capacity} makmal diaudit</span>
+      </div>
+      <div class="grid cols-2" style="margin-bottom:14px;">
+        <div>
+          <div class="stat-label">Purata Pematuhan</div>
+          <div class="stat-value" style="font-size:24px;">${s.avg.toFixed(1)}%</div>
+        </div>
+        <div>
+          <div class="stat-label">KKP Kritikal</div>
+          <div class="stat-value" style="font-size:24px;color:${s.critCount>0?'var(--red)':'var(--ink)'}">${s.critCount}</div>
+        </div>
+      </div>
+      <hr class="soft">
+      ${rows}
+    </div>`;
+  }
+
+  const tableRows = all.map(a=>{
+    const s = computeScore(a.items);
+    const crit = hasCriticalFail(a.items);
+    const isDraft = a.statusRekod === 'Draf';
+    const isPending = a.statusRekod === 'MenungguBorang2';
+    const sesi = sessionName(a.sesiId);
+    const searchBlob = `${a.namaMakmal} ${a.kampus} ${a.lokasi} ${a.auditor} ${s.status} ${sesi} ${isDraft?'draf':''} ${isPending?'menunggu':''}`.toLowerCase();
+    const rowClick = isDraft ? `b1LoadForEdit(${a.id})` : isPending ? `b2GoTo(${a.id})` : `viewAuditDetail(${a.id})`;
+    return `<tr class="clickable" data-search="${searchBlob}" onclick="${rowClick}">
+      <td>${a.namaMakmal}<div style="font-size:11.5px;color:var(--text-mute)">${a.lokasi} · ${sesi}</div></td>
+      <td><span class="badge grey">${a.kampus.replace('Kampus ','')}</span></td>
+      <td class="mono">${fmtDate(a.tarikh)}</td>
+      <td class="mono">${isDraft ? '—' : s.pct.toFixed(1)+'%'}</td>
+      <td>${isDraft ? '<span class="badge amber">✎ DRAF — klik sambung</span>' : isPending ? '<span class="badge amber">⏳ Menunggu Borang 2</span>' : `<span class="badge ${s.cls}">${s.status}</span>`}</td>
+      <td>${isDraft ? '-' : (crit? '<span class="badge red">● Kritikal</span>':'<span class="badge green">Selamat</span>')}</td>
+    </tr>`;
+  }).join('');
+
+  const draftCount = all.filter(a=>a.statusRekod==='Draf').length;
+  const pendingCount = all.filter(a=>a.statusRekod==='MenungguBorang2').length;
+  const activeSession = getActiveSession();
+
+  document.getElementById('main').innerHTML = `
+    <div class="topline">
+      <div>
+        <h1 class="h1">Dashboard Ringkasan</h1>
+        <div class="h1-sub">Status audit dalaman KKP · semua makmal FTKE</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn primary" ${activeSession?'':'disabled'} onclick="nav('borang1')">▶ Mula Penilaian Audit (Borang 1 → 2)</button>
+        <button class="btn" onclick="nav('borang2')">Buka Borang 2 (audit sedia ada)</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+      <div style="min-width:260px;">
+        <label class="field-label">📋 Sesi Audit Dipaparkan</label>
+        ${sortedSessions.length ? `
+          <select id="sessionPicker" onchange="dashboardSessionFilter=Number(this.value); renderDashboard();">
+            ${sortedSessions.map(s=>`<option value="${s.id}" ${s.id===focusSessionId?'selected':''}>${s.nama} ${s.id===STATE.activeSessionId?'★ (Sesi Semasa)':''} — ${s.status}</option>`).join('')}
+          </select>` : `<div class="stat-note">Tiada sesi audit wujud lagi.</div>`}
+      </div>
+      <div style="min-width:190px;">
+        <label class="field-label">🏫 Kampus</label>
+        <select onchange="dashboardCampusFilter=this.value; renderDashboard();">
+          <option ${dashboardCampusFilter==='Semua'?'selected':''}>Semua</option>
+          <option ${dashboardCampusFilter==='Kampus Teknologi'?'selected':''}>Kampus Teknologi</option>
+          <option ${dashboardCampusFilter==='Kampus Induk'?'selected':''}>Kampus Induk</option>
+        </select>
+      </div>
+      ${focusSession ? `<span class="badge ${focusSession.status==='Aktif'?'green':'grey'}">${focusSession.status==='Aktif' ? 'Sesi Aktif — boleh isi/edit' : '🔒 Sesi Ditutup — papar sahaja'}</span>` : ''}
+      ${focusSessionId !== defaultSessionId && defaultSessionId ? `<button class="btn sm" onclick="dashboardSessionFilter=null; renderDashboard();">↺ Kembali ke Sesi Semasa</button>` : ''}
+    </div>
+
+    ${!activeSession
+      ? `<div class="callout warn" style="margin-bottom:16px;">⚠ <b>Tiada sesi audit aktif buat masa ini.</b> ${isAdmin() ? 'Sila cipta atau aktifkan satu sesi di halaman Admin sebelum audit baharu boleh dimulakan.' : 'Sila hubungi Pengerusi OSH / Admin untuk membuka sesi audit baharu sebelum anda boleh memulakan penilaian.'}</div>`
+      : ''}
+
+    ${draftCount>0 ? `
+    <div class="card" style="border:1.5px solid var(--amber);margin-bottom:20px;">
+      <div style="font-weight:700;color:var(--amber);margin-bottom:10px;">💾 Anda ada ${draftCount} draf belum selesai — klik untuk sambung isi:</div>
+      ${all.filter(a=>a.statusRekod==='Draf').map(d=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid var(--line-soft);">
+          <div>
+            <b>${d.namaMakmal||'(Belum diberi nama)'}</b>
+            <span class="stat-note" style="margin-left:6px;">${d.kampus} · ${d.lokasi||'-'} · ${sessionName(d.sesiId)}</span>
+          </div>
+          <button class="btn sm primary" onclick="b1LoadForEdit(${d.id})">Sambung Isi →</button>
+        </div>`).join('')}
+    </div>` : ''}
+
+    ${pendingCount>0 ? `
+    <div class="card" style="border:1.5px solid var(--amber);margin-bottom:20px;">
+      <div style="font-weight:700;color:var(--amber);margin-bottom:10px;">⏳ Anda ada ${pendingCount} audit BELUM SELESAI — Borang 1 lengkap, tapi Borang 2 belum disahkan:</div>
+      ${all.filter(a=>a.statusRekod==='MenungguBorang2').map(d=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid var(--line-soft);">
+          <div>
+            <b>${d.namaMakmal}</b>
+            <span class="stat-note" style="margin-left:6px;">${d.kampus} · ${d.lokasi||'-'} · ${sessionName(d.sesiId)}</span>
+          </div>
+          <button class="btn sm primary" onclick="b2GoTo(${d.id})">Sahkan Borang 2 →</button>
+        </div>`).join('')}
+    </div>` : ''}
+
+    <div class="grid cols-4">
+      <div class="card">
+        <div class="stat-label">Jumlah Makmal (Kapasiti)</div>
+        <div class="stat-value">${totalCapacity}</div>
+        <div class="stat-note">Ditetapkan di halaman Admin</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Makmal Telah Diaudit</div>
+        <div class="stat-value">${all.length}</div>
+        <div class="stat-note">${totalCapacity? Math.round(all.length/totalCapacity*100):0}% daripada kapasiti</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Purata Pematuhan Keseluruhan</div>
+        <div class="stat-value">${overallAvg.toFixed(1)}%</div>
+        <div class="stat-note">Skala 2/1/0/NA mengikut Borang 1</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Makmal Ada KKP Kritikal</div>
+        <div class="stat-value" style="color:${criticalCount>0?'var(--red)':'var(--ink)'}">${criticalCount}</div>
+        <div class="stat-note">Item kritikal ditanda skor 0</div>
+      </div>
+    </div>
+
+    <div class="section-title">Pecahan mengikut Kampus <div class="rule"></div></div>
+    <div class="grid cols-2">
+      ${campusCard('Kampus Teknologi', tek)}
+      ${campusCard('Kampus Induk', ind)}
+    </div>
+
+    <div class="section-title">Ringkasan Borang 2 — Laporan NCR <div class="rule"></div></div>
+    <div class="grid cols-4">
+      <div class="card">
+        <div class="stat-label">Jumlah NCR (Ketidakpatuhan)</div>
+        <div class="stat-value" style="color:var(--red);">${totalNC}</div>
+        <div class="stat-note">${dashboardCampusFilter==='Semua'?'Kedua-dua kampus':dashboardCampusFilter} · ${focusSession?focusSession.nama:'-'}</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">NCR · Kampus Teknologi</div>
+        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Teknologi' && (isAdmin()||a.emailAuditor===currentUser.email)).reduce((s,a)=>s+a.nc.length,0)}</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">NCR · Kampus Induk</div>
+        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Induk' && (isAdmin()||a.emailAuditor===currentUser.email)).reduce((s,a)=>s+a.nc.length,0)}</div>
+      </div>
+    </div>
+
+    <div class="section-title">Ringkasan Borang 2 — Cadangan OFI <div class="rule"></div></div>
+    <div class="grid cols-4">
+      <div class="card">
+        <div class="stat-label">Jumlah OFI (Penambahbaikan)</div>
+        <div class="stat-value" style="color:var(--amber);">${totalOFI}</div>
+        <div class="stat-note">Cadangan amalan terbaik</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">OFI · Kampus Teknologi</div>
+        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Teknologi' && (isAdmin()||a.emailAuditor===currentUser.email)).reduce((s,a)=>s+a.ofi.length,0)}</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">OFI · Kampus Induk</div>
+        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Induk' && (isAdmin()||a.emailAuditor===currentUser.email)).reduce((s,a)=>s+a.ofi.length,0)}</div>
+      </div>
+    </div>
+
+    ${isAdmin() ? `
+    <div class="section-title">Eksport & Cetak Data (Admin) <div class="rule"></div></div>
+    <div class="card">
+      <div class="callout" style="margin-bottom:16px;">Admin boleh cetak/eksport <b>semua data audit</b> merentasi kedua-dua kampus, ditapis <b>mengikut kampus</b>, atau <b>satu makmal individu</b>. Auditor biasa hanya boleh jana dokumen bagi audit yang mereka cipta sendiri (lihat jadual di bawah).</div>
+      <div class="grid cols-2" style="align-items:end;">
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Skop Laporan</label>
+          <select id="exportScope" onchange="renderExportSubfilter()">
+            <option value="semua">Semua Makmal (Kedua-dua Kampus)</option>
+            <option value="kampus">Ikut Kampus</option>
+            <option value="makmal">Makmal Individu</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0;" id="exportSubfilterWrap"></div>
+      </div>
+      <div class="field" style="margin-top:10px;max-width:220px;">
+        <label class="field-label">Format Dokumen</label>
+        <select id="exportFormat">
+          <option value="word">Dokumen Word (.doc)</option>
+          <option value="html">Laman Web (.html)</option>
+          <option value="excel">Hamparan Excel (.xlsx)</option>
+        </select>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px;">
+        <button class="btn primary" onclick="generateBulkDocument()">⤓ Jana Laporan Pukal</button>
+        <span id="exportScopeHint" class="stat-note" style="align-self:center;"></span>
+      </div>
+    </div>
+
+    <div class="section-title">Cetak Laporan NCR / OFI / Kritikal Keseluruhan <div class="rule"></div></div>
+    <div class="card">
+      <div class="callout" style="margin-bottom:16px;">Jana satu senarai konsolidasi semua NCR atau semua OFI merentasi berbilang makmal dalam sesi audit yang dipaparkan (${focusSession?focusSession.nama:'-'}), ditapis ikut kampus.</div>
+      <div class="grid cols-2" style="align-items:end;">
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Jenis Laporan</label>
+          <select id="ncOfiType">
+            <option value="nc">Laporan NCR (Ketidakpatuhan)</option>
+            <option value="ofi">Laporan OFI (Cadangan Penambahbaikan)</option>
+            <option value="kritikal">Laporan Item Kritikal Gagal (KKP)</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Skop Kampus</label>
+          <select id="ncOfiScope">
+            <option value="Semua">Semua Kampus</option>
+            <option value="Kampus Teknologi">Kampus Teknologi</option>
+            <option value="Kampus Induk">Kampus Induk</option>
+          </select>
+        </div>
+      </div>
+      <div class="field" style="margin-top:10px;max-width:220px;">
+        <label class="field-label">Format Dokumen</label>
+        <select id="ncOfiFormat">
+          <option value="word">Dokumen Word (.doc)</option>
+          <option value="html">Laman Web (.html)</option>
+          <option value="excel">Hamparan Excel (.xlsx)</option>
+        </select>
+      </div>
+      <div style="margin-top:14px;">
+        <button class="btn primary" onclick="generateNcOfiReport()">⤓ Jana Laporan NCR/OFI</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="callout" style="margin-bottom:16px;">📊 Jana graf bar untuk metrik dipilih (dalam sesi & skop kampus dipilih), disusun menaik atau menurun — mudah kenal pasti makmal paling lemah/terbaik sekali imbas.</div>
+      <div class="grid cols-2" style="align-items:end;">
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Skop Kampus</label>
+          <select id="graphScope">
+            <option value="Semua">Semua Kampus</option>
+            <option value="Kampus Teknologi">Kampus Teknologi</option>
+            <option value="Kampus Induk">Kampus Induk</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Susunan</label>
+          <select id="graphOrder">
+            <option value="desc">Menurun (Tertinggi → Terendah)</option>
+            <option value="asc">Menaik (Terendah → Tertinggi)</option>
+          </select>
+        </div>
+      </div>
+      <div class="field" style="margin-top:10px;margin-bottom:0;">
+        <label class="field-label">Metrik Dipaparkan (boleh pilih lebih daripada satu)</label>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:6px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="graphMetricPct" checked style="width:auto;accent-color:var(--steel);"> % Markah
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="graphMetricKrit" style="width:auto;accent-color:var(--red);"> Kritikal
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="graphMetricNcr" style="width:auto;accent-color:var(--amber);"> NCR
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="graphMetricOfi" style="width:auto;accent-color:var(--steel);"> OFI
+          </label>
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <button class="btn primary" onclick="generateScoreGraph()">📊 Jana Graf</button>
+      </div>
+    </div>` : ''}
+
+    <div class="section-title">Jana Dokumen Audit Mengikut Makmal <div class="rule"></div></div>
+    <div class="card" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;">
+        <label class="field-label">Pilih Makmal</label>
+        <select id="dashSelectMakmal">
+          ${all.filter(a=>a.statusRekod!=='Draf').map(a=>`<option value="${a.id}">${a.namaMakmal} — ${a.kampus} (${fmtDate(a.tarikh)})</option>`).join('')}
+        </select>
+      </div>
+      <div style="min-width:170px;">
+        <label class="field-label">Format Dokumen</label>
+        <select id="dashFormat">
+          <option value="word">Dokumen Word (.doc)</option>
+          <option value="html">Laman Web (.html)</option>
+          <option value="excel">Hamparan Excel (.xlsx)</option>
+        </select>
+      </div>
+      <button class="btn" onclick="viewAuditDetail(document.getElementById('dashSelectMakmal').value)">Lihat Butiran</button>
+      <button class="btn primary" onclick="generateDocument(document.getElementById('dashSelectMakmal').value, document.getElementById('dashFormat').value)">⤓ Jana Dokumen</button>
+    </div>
+
+    <div class="section-title">Senarai Audit ${isAdmin()?'':'(Rekod Anda Sahaja)'} <div class="rule"></div></div>
+    <div class="card" style="padding:14px 16px;margin-bottom:12px;">
+      <input type="text" id="auditSearchBox" oninput="filterAuditTable()" placeholder="🔍 Cari makmal, kampus, lokasi, auditor atau status...">
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      ${all.length ? `<table>
+        <thead><tr><th>Makmal</th><th>Kampus</th><th>Tarikh Audit</th><th>Skor</th><th>Status</th><th>KKP</th></tr></thead>
+        <tbody id="auditTableBody">${tableRows}</tbody>
+      </table>
+      <div class="empty" id="auditSearchEmpty" style="display:none;">Tiada makmal sepadan dengan carian.</div>` : `<div class="empty">
+        ${isAdmin()
+          ? 'Belum ada audit direkodkan.'
+          : `Anda (${currentUser.nama}) belum mencipta sebarang audit lagi.<br>Sistem hanya memaparkan rekod yang anda daftar sendiri — ini bukan ralat.<br>Klik "+ Audit Baharu (Borang 1)" di atas untuk mula.`}
+      </div>`}
+    </div>
+  `;
+  if(isAdmin()) renderExportSubfilter();
+}
+
+function filterAuditTable(){
+  const q = document.getElementById('auditSearchBox').value.trim().toLowerCase();
+  const rows = document.querySelectorAll('#auditTableBody tr');
+  let visibleCount = 0;
+  rows.forEach(tr=>{
+    const match = !q || (tr.dataset.search||'').includes(q);
+    tr.style.display = match ? '' : 'none';
+    if(match) visibleCount++;
+  });
+  const emptyMsg = document.getElementById('auditSearchEmpty');
+  if(emptyMsg) emptyMsg.style.display = (q && visibleCount===0) ? 'block' : 'none';
+}
+
+function renderExportSubfilter(){
+  const scope = document.getElementById('exportScope').value;
+  const wrap = document.getElementById('exportSubfilterWrap');
+  const hint = document.getElementById('exportScopeHint');
+  if(scope==='kampus'){
+    wrap.innerHTML = `<label class="field-label">Pilih Kampus</label>
+      <select id="exportKampus">
+        <option>Kampus Teknologi</option>
+        <option>Kampus Induk</option>
+      </select>`;
+    hint.textContent = 'Jana satu dokumen merangkumi semua makmal dalam kampus dipilih.';
+  } else if(scope==='makmal'){
+    wrap.innerHTML = `<label class="field-label">Pilih Makmal</label>
+      <select id="exportMakmal">
+        ${STATE.audits.filter(a=>a.statusRekod!=='Draf').map(a=>`<option value="${a.id}">${a.namaMakmal} — ${a.kampus}</option>`).join('')}
+      </select>`;
+    hint.textContent = 'Sama seperti "Jana Dokumen" bagi satu makmal.';
+  } else {
+    wrap.innerHTML = '';
+    hint.textContent = `Merangkumi kesemua ${STATE.audits.filter(a=>a.statusRekod!=='Draf').length} rekod audit selesai, kedua-dua kampus.`;
+  }
+}
+
+function generateBulkDocument(){
+  const scope = document.getElementById('exportScope').value;
+  const format = document.getElementById('exportFormat').value;
+  let list = STATE.audits.filter(a=>a.statusRekod!=='Draf' && a.sesiId===dashboardFocusSessionId());
+  let scopeLabel = 'Semua Makmal (Kedua-dua Kampus)';
+  if(scope==='kampus'){
+    const k = document.getElementById('exportKampus').value;
+    list = list.filter(a=>a.kampus===k);
+    scopeLabel = k;
+  } else if(scope==='makmal'){
+    const id = document.getElementById('exportMakmal').value;
+    return generateDocument(id, format); // guna dokumen terperinci sedia ada bagi 1 makmal
+  }
+  if(!list.length){ toast('Tiada rekod audit selesai untuk skop ini.'); return; }
+
+  if(format==='excel'){
+    const rows = [['Makmal','Kampus','Lokasi','Tarikh Audit','Auditor','PIC Makmal','Skor %','Status','Bil. NC','Bil. OFI']];
+    list.forEach(a=>{
+      const s = computeScore(a.items);
+      rows.push([a.namaMakmal, a.kampus, a.lokasi, fmtDate(a.tarikh), a.auditor, a.pic||'-', Number(s.pct.toFixed(1)), s.status, a.nc.length, a.ofi.length]);
+    });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:26},{wch:16},{wch:16},{wch:16},{wch:20},{wch:20},{wch:9},{wch:22},{wch:8},{wch:8}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Laporan Pukal');
+    XLSX.writeFile(wb, `Laporan_Pukal_${scopeLabel.replace(/\s+/g,'_')}.xlsx`);
+    toast(`Fail Excel pukal (${scopeLabel}) dijana & dimuat turun.`);
+    return;
+  }
+
+  const rows = list.map(a=>{
+    const s = computeScore(a.items);
+    return `<tr>
+      <td>${a.namaMakmal}</td><td>${a.kampus}</td><td>${a.lokasi}</td>
+      <td>${fmtDate(a.tarikh)}</td><td>${a.auditor}</td><td>${a.pic||'-'}</td>
+      <td class="c">${s.pct.toFixed(1)}%</td><td class="c">${s.status}</td>
+      <td class="c">${a.nc.length}</td><td class="c">${a.ofi.length}</td>
+    </tr>`;
+  }).join('');
+  const overallAvg = list.reduce((s,a)=>s+computeScore(a.items).pct,0)/list.length;
+  const critTotal = list.filter(a=>hasCriticalFail(a.items)).length;
+
+  const doc = `<!DOCTYPE html><html lang="ms"><head><meta charset="UTF-8"><title>Laporan Pukal Audit OSH — ${scopeLabel}</title>
+  <style>
+    body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;max-width:980px;margin:30px auto;padding:0 20px;line-height:1.5;}
+    h1{font-size:19px;text-align:center;margin-bottom:2px;}
+    h2{font-size:13px;color:#555;text-align:center;margin-top:0;font-weight:normal;}
+    table{width:100%;border-collapse:collapse;font-size:11px;margin-top:18px;}
+    th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;}
+    td.c,th.c{text-align:center;}
+    .meta{font-size:12.5px;margin:16px 0;text-align:center;color:#333;}
+    @media print{ body{margin:0;} }
+  </style></head><body>
+  <h1>LAPORAN PUKAL AUDIT DALAMAN OSH — MAKMAL FTKE</h1>
+  <h2>Skop: ${scopeLabel} · Dijana oleh Sistem Audit OSH FTKE · ${fmtDate(new Date().toISOString())}</h2>
+  <div class="meta"><b>Jumlah Makmal Direkod:</b> ${list.length} &nbsp;|&nbsp; <b>Purata Pematuhan:</b> ${overallAvg.toFixed(1)}% &nbsp;|&nbsp; <b>Makmal Ada KKP Kritikal:</b> ${critTotal}</div>
+  <table>
+    <thead><tr><th>Makmal</th><th>Kampus</th><th>Lokasi</th><th>Tarikh Audit</th><th>Auditor</th><th>PIC Makmal</th><th class="c">Skor</th><th class="c">Status</th><th class="c">Bil. NC</th><th class="c">Bil. OFI</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  </body></html>`;
+
+  if(format==='word'){
+    const blob = new Blob(['\ufeff'+doc], {type:'application/msword'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Laporan_Pukal_${scopeLabel.replace(/\s+/g,'_')}.doc`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    toast(`Dokumen Word pukal (${scopeLabel}) dijana & dimuat turun.`);
+    return;
+  }
+
+  const blob = new Blob([doc], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `Laporan_Pukal_${scopeLabel.replace(/\s+/g,'_')}.html`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  toast(`Laporan pukal (${scopeLabel}) dijana & dimuat turun.`);
+}
+
+function escapeXml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function buildBarChartSvg(rows, opts){
+  // rows: [{nama, value, color}], opts: {maxValue, valueSuffix, chartWidth}
+  const barHeight = 24, gap = 10, leftPad = 230, rightPad = 60, topPad = 34;
+  const chartWidth = opts.chartWidth || 460;
+  const maxValue = opts.maxValue;
+  const svgHeight = topPad + rows.length*(barHeight+gap) + 20;
+  const svgWidth = leftPad + chartWidth + rightPad;
+
+  let gridLines = '';
+  const steps = opts.gridSteps || [0, maxValue*0.25, maxValue*0.5, maxValue*0.75, maxValue];
+  steps.forEach(v=>{
+    const x = leftPad + (maxValue>0 ? (v/maxValue)*chartWidth : 0);
+    gridLines += `<line x1="${x}" y1="${topPad-10}" x2="${x}" y2="${svgHeight-14}" stroke="#e2ddd0" stroke-width="1"></line>
+      <text x="${x}" y="${topPad-16}" text-anchor="middle" font-size="10" fill="#999" font-family="Arial">${Math.round(v*10)/10}${opts.valueSuffix||''}</text>`;
+  });
+
+  let bars = '';
+  rows.forEach((r,i)=>{
+    const y = topPad + i*(barHeight+gap);
+    const barW = maxValue>0 ? Math.max(2, (r.value/maxValue)*chartWidth) : 2;
+    bars += `
+      <text x="${leftPad-10}" y="${y+barHeight/2+5}" text-anchor="end" font-size="12" font-family="Arial" fill="#1E2A33">${escapeXml(r.nama.length>28?r.nama.slice(0,26)+'…':r.nama)}</text>
+      <rect x="${leftPad}" y="${y}" width="${barW}" height="${barHeight}" fill="${r.color}" rx="3"></rect>
+      <text x="${leftPad+barW+8}" y="${y+barHeight/2+5}" font-size="12" font-family="Arial" fill="#333" font-weight="bold">${r.value}${opts.valueSuffix||''}</text>
+    `;
+  });
+
+  return `<svg viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:${svgWidth}px;">
+    ${gridLines}
+    ${bars}
+  </svg>`;
+}
+
+function generateScoreGraph(){
+  const scope = document.getElementById('graphScope').value;
+  const order = document.getElementById('graphOrder').value;
+  const showPct = document.getElementById('graphMetricPct').checked;
+  const showKrit = document.getElementById('graphMetricKrit').checked;
+  const showNcr = document.getElementById('graphMetricNcr').checked;
+  const showOfi = document.getElementById('graphMetricOfi').checked;
+  if(!showPct && !showKrit && !showNcr && !showOfi){ toast('Sila tandakan sekurang-kurangnya satu metrik untuk dipaparkan.'); return; }
+
+  const focusSessionId = dashboardFocusSessionId();
+  let list = STATE.audits.filter(a=>a.statusRekod!=='Draf' && a.sesiId===focusSessionId);
+  if(scope!=='Semua') list = list.filter(a=>a.kampus===scope);
+  if(!list.length){ toast('Tiada rekod audit untuk skop ini.'); return; }
+
+  const statusColorMap = {CEMERLANG:'#1B7A3D',BAIK:'#8FBC3F',MEMUASKAN:'#E0A82E','PERLU PENAMBAHBAIKAN':'#D9722E','TIDAK MEMUASKAN':'#C0392B'};
+  const base = list.map(a=>{
+    const s = computeScore(a.items);
+    const kritCount = STATE.admin.criticalItems.filter(c=>a.items[c].skor==='0').length;
+    return {nama:a.namaMakmal, kampus:a.kampus, pct:s.pct, status:s.status, kritikal:kritCount, ncr:a.nc.length, ofi:a.ofi.length};
+  });
+
+  // Susun ikut metrik utama: keutamaan %Markah > Kritikal > NCR > OFI (metrik pertama yang ditandakan)
+  const sortKey = showPct ? 'pct' : showKrit ? 'kritikal' : showNcr ? 'ncr' : 'ofi';
+  const sorted = [...base].sort((x,y)=> order==='asc' ? x[sortKey]-y[sortKey] : y[sortKey]-x[sortKey]);
+
+  let sections = '';
+  if(showPct){
+    const rows = sorted.map(r=>({nama:r.nama, value:Number(r.pct.toFixed(1)), color: statusColorMap[r.status]||'#888'}));
+    sections += `<h2 class="chartTitle">% Markah Pematuhan</h2>` + buildBarChartSvg(rows, {maxValue:100, valueSuffix:'%'});
+  }
+  if(showKrit){
+    const rows = sorted.map(r=>({nama:r.nama, value:r.kritikal, color:'#C0392B'}));
+    const maxV = Math.max(1, ...rows.map(r=>r.value));
+    sections += `<h2 class="chartTitle">Bilangan Item Kritikal Gagal</h2>` + buildBarChartSvg(rows, {maxValue:maxV});
+  }
+  if(showNcr){
+    const rows = sorted.map(r=>({nama:r.nama, value:r.ncr, color:'#D9722E'}));
+    const maxV = Math.max(1, ...rows.map(r=>r.value));
+    sections += `<h2 class="chartTitle">Bilangan NCR</h2>` + buildBarChartSvg(rows, {maxValue:maxV});
+  }
+  if(showOfi){
+    const rows = sorted.map(r=>({nama:r.nama, value:r.ofi, color:'#2C5C86'}));
+    const maxV = Math.max(1, ...rows.map(r=>r.value));
+    sections += `<h2 class="chartTitle">Bilangan OFI</h2>` + buildBarChartSvg(rows, {maxValue:maxV});
+  }
+
+  const scopeLabel = scope==='Semua' ? 'Semua Kampus' : scope;
+  const orderLabel = order==='asc' ? 'Menaik (Terendah ke Tertinggi)' : 'Menurun (Tertinggi ke Terendah)';
+  const focusSess = STATE.sessions.find(s=>s.id===focusSessionId);
+  const metricLabels = [showPct&&'% Markah', showKrit&&'Kritikal', showNcr&&'NCR', showOfi&&'OFI'].filter(Boolean).join(', ');
+
+  const doc = `<!DOCTYPE html><html lang="ms"><head><meta charset="UTF-8"><title>Graf Makmal — ${scopeLabel}</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:900px;margin:30px auto;padding:0 20px;}
+    h1{font-size:19px;text-align:center;margin-bottom:2px;}
+    h2.pageHead{font-size:13px;color:#555;text-align:center;margin-top:0;font-weight:normal;}
+    h2.chartTitle{font-size:14px;color:#10243E;margin:26px 0 4px;border-bottom:1px solid #ddd;padding-bottom:4px;}
+    .legend{display:flex;gap:18px;justify-content:center;margin:16px 0 6px;font-size:12px;flex-wrap:wrap;}
+    .legend span{display:inline-flex;align-items:center;gap:6px;}
+    .legend i{width:12px;height:12px;border-radius:3px;display:inline-block;}
+    .chartwrap{overflow-x:auto;margin-top:6px;}
+    @media print{ body{margin:0;} }
+  </style></head><body>
+  <h1>GRAF MAKMAL — MAKMAL FTKE</h1>
+  <h2 class="pageHead">Skop: ${scopeLabel} · Metrik: ${metricLabels} · Susunan: ${orderLabel} · ${focusSess?focusSess.nama:'-'} · Dijana ${fmtDate(new Date().toISOString())}</h2>
+  ${showPct ? `<div class="legend">
+    <span><i style="background:#1B7A3D;"></i> Cemerlang (≥90%)</span>
+    <span><i style="background:#8FBC3F;"></i> Baik (≥80%)</span>
+    <span><i style="background:#E0A82E;"></i> Memuaskan (≥70%)</span>
+    <span><i style="background:#D9722E;"></i> Perlu Penambahbaikan (≥50%)</span>
+    <span><i style="background:#C0392B;"></i> Tidak Memuaskan (&lt;50%)</span>
+  </div>` : ''}
+  <div class="chartwrap">${sections}</div>
+  </body></html>`;
+
+  const blob = new Blob([doc], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `Graf_Makmal_${scopeLabel.replace(/\s+/g,'_')}_${order}.html`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  toast(`Graf makmal (${scopeLabel}, ${metricLabels}) dijana & dimuat turun.`);
+}
+function generateNcOfiReport(){
+  const type = document.getElementById('ncOfiType').value; // 'nc' | 'ofi' | 'kritikal'
+  const scope = document.getElementById('ncOfiScope').value; // 'Semua' | 'Kampus Teknologi' | 'Kampus Induk'
+  const format = document.getElementById('ncOfiFormat').value;
+  const focusSessionId = dashboardFocusSessionId();
+
+  let audits = STATE.audits.filter(a=>a.statusRekod!=='Draf' && a.sesiId===focusSessionId);
+  if(scope!=='Semua') audits = audits.filter(a=>a.kampus===scope);
+
+  const entries = [];
+  audits.forEach(a=>{
+    if(type==='kritikal'){
+      STATE.admin.criticalItems.forEach(kod=>{
+        const it = a.items[kod];
+        if(it && it.skor==='0'){
+          entries.push({ makmal:a.namaMakmal, kampus:a.kampus, auditor:a.auditor, tarikh:a.tarikh,
+            seksyen:kod, teksSeksyen:itemText(kod), catatan: it.catatan||'' });
+        }
+      });
+      return;
+    }
+    const list = type==='nc' ? a.nc : a.ofi;
+    list.forEach((item,idx)=> entries.push({
+      makmal:a.namaMakmal, kampus:a.kampus, auditor:a.auditor, tarikh:a.tarikh,
+      bil: idx+1, seksyen:item.seksyen, teksSeksyen: itemText(item.seksyen),
+      penemuan: item.penemuan||'', tindakan: item.tindakan||'', cadangan: item.cadangan||'',
+      adaGambar: !!item.gambar
+    }));
+  });
+
+  const fileTag = type==='nc' ? 'NCR' : type==='ofi' ? 'OFI' : 'Kritikal';
+  const scopeLabel = scope==='Semua' ? 'Semua Kampus' : scope;
+
+  if(!entries.length){ toast(`Tiada rekod ${fileTag} untuk skop ini.`); return; }
+
+  if(format==='excel'){
+    const headerNC = ['Bil','Makmal','Kampus','Seksyen','Item Seksyen','Perincian Penemuan & Lokasi','Cadangan Tindakan Pembetulan','Ada Gambar'];
+    const headerOFI = ['Bil','Makmal','Kampus','Seksyen','Item Seksyen','Cadangan Penambahbaikan','Ada Gambar'];
+    const headerKrit = ['Bil','Makmal','Kampus','Auditor','Tarikh Audit','Kod Item Kritikal','Item Audit','Catatan'];
+    const rows = [type==='nc' ? headerNC : type==='ofi' ? headerOFI : headerKrit];
+    entries.forEach((e,i)=>{
+      if(type==='nc') rows.push([i+1, e.makmal, e.kampus, e.seksyen, e.teksSeksyen, e.penemuan, e.tindakan, e.adaGambar?'Ya':'Tiada']);
+      else if(type==='ofi') rows.push([i+1, e.makmal, e.kampus, e.seksyen, e.teksSeksyen, e.cadangan, e.adaGambar?'Ya':'Tiada']);
+      else rows.push([i+1, e.makmal, e.kampus, e.auditor, fmtDate(e.tarikh), e.seksyen, e.teksSeksyen, e.catatan||'-']);
+    });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = type==='nc'
+      ? [{wch:5},{wch:22},{wch:15},{wch:8},{wch:32},{wch:30},{wch:30},{wch:9}]
+      : type==='ofi' ? [{wch:5},{wch:24},{wch:16},{wch:8},{wch:36},{wch:42},{wch:10}]
+      : [{wch:5},{wch:22},{wch:15},{wch:18},{wch:14},{wch:8},{wch:34},{wch:26}];
+    XLSX.utils.book_append_sheet(wb, ws, `Laporan ${fileTag}`);
+    XLSX.writeFile(wb, `Laporan_${fileTag}_${scopeLabel.replace(/\s+/g,'_')}.xlsx`);
+    toast(`Fail Excel Laporan ${fileTag} (${scopeLabel}) dijana & dimuat turun.`);
+    return;
+  }
+
+  const tableRows = entries.map((e,i)=>{
+    if(type==='nc') return `
+    <tr>
+      <td class="c">${i+1}</td><td>${e.makmal}</td><td>${e.kampus}</td>
+      <td class="c">${e.seksyen}</td><td>${e.teksSeksyen}</td>
+      <td>${e.penemuan||'-'}</td><td>${e.tindakan||'-'}</td>
+      <td class="c">${e.adaGambar?'Ya':'-'}</td>
+    </tr>`;
+    if(type==='ofi') return `
+    <tr>
+      <td class="c">${i+1}</td><td>${e.makmal}</td><td>${e.kampus}</td>
+      <td class="c">${e.seksyen}</td><td>${e.teksSeksyen}</td>
+      <td>${e.cadangan||'-'}</td>
+      <td class="c">${e.adaGambar?'Ya':'-'}</td>
+    </tr>`;
+    return `
+    <tr>
+      <td class="c">${i+1}</td><td>${e.makmal}</td><td>${e.kampus}</td><td>${e.auditor}</td>
+      <td>${fmtDate(e.tarikh)}</td><td class="c">${e.seksyen}</td><td>${e.teksSeksyen}</td><td>${e.catatan||'-'}</td>
+    </tr>`;
+  }).join('');
+
+  const theadNC = `<tr><th class="c">Bil</th><th>Makmal</th><th>Kampus</th><th class="c">Seksyen</th><th>Item Seksyen</th><th>Perincian Penemuan & Lokasi</th><th>Cadangan Tindakan Pembetulan</th><th class="c">Gambar</th></tr>`;
+  const theadOFI = `<tr><th class="c">Bil</th><th>Makmal</th><th>Kampus</th><th class="c">Seksyen</th><th>Item Seksyen</th><th>Cadangan Penambahbaikan</th><th class="c">Gambar</th></tr>`;
+  const theadKrit = `<tr><th class="c">Bil</th><th>Makmal</th><th>Kampus</th><th>Auditor</th><th>Tarikh Audit</th><th class="c">Kod</th><th>Item Kritikal Gagal (Skor 0)</th><th>Catatan</th></tr>`;
+  const thead = type==='nc'?theadNC : type==='ofi'?theadOFI : theadKrit;
+
+  const doc = `<!DOCTYPE html><html lang="ms"><head><meta charset="UTF-8"><title>Laporan ${fileTag} — ${scopeLabel}</title>
+  <style>
+    body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;max-width:1080px;margin:30px auto;padding:0 20px;line-height:1.5;}
+    h1{font-size:19px;text-align:center;margin-bottom:2px;}
+    h2{font-size:13px;color:#555;text-align:center;margin-top:0;font-weight:normal;}
+    table{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:18px;}
+    th,td{border:1px solid #ccc;padding:6px 7px;text-align:left;vertical-align:top;}
+    td.c,th.c{text-align:center;}
+    .meta{font-size:12.5px;margin:10px 0;text-align:center;color:#333;}
+    @media print{ body{margin:0;} }
+  </style></head><body>
+  <h1>LAPORAN ${fileTag==='Kritikal'?'ITEM KRITIKAL GAGAL (KKP)':fileTag} — MAKMAL FTKE</h1>
+  <h2>Skop: ${scopeLabel} · ${focusSessionId ? sessionName(focusSessionId) : '-'} · Dijana ${fmtDate(new Date().toISOString())}</h2>
+  <div class="meta"><b>Jumlah Rekod ${fileTag}:</b> ${entries.length} &nbsp;|&nbsp; <b>Jumlah Makmal Terlibat:</b> ${new Set(entries.map(e=>e.makmal)).size}</div>
+  <table>
+    <thead>${thead}</thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+  </body></html>`;
+
+  if(format==='word'){
+    const blob = new Blob(['\ufeff'+doc], {type:'application/msword'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Laporan_${fileTag}_${scopeLabel.replace(/\s+/g,'_')}.doc`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    toast(`Dokumen Word Laporan ${fileTag} (${scopeLabel}) dijana & dimuat turun.`);
+    return;
+  }
+
+  const blob = new Blob([doc], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `Laporan_${fileTag}_${scopeLabel.replace(/\s+/g,'_')}.html`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  toast(`Laporan ${fileTag} (${scopeLabel}) dijana & dimuat turun.`);
+}
+
+function viewAuditDetail(id){
+  const a = STATE.audits.find(x=>String(x.id)===String(id));
+  if(!a) return;
+  const s = computeScore(a.items);
+  const crit = STATE.admin.criticalItems.filter(c=> a.items[c] && a.items[c].skor==='0');
+  const sectionsHtml = SECTIONS.map(sec=>{
+    const rows = sec.items.map(([code,text])=>{
+      const it = a.items[code] || {skor:'NA',catatan:''};
+      const isCrit = STATE.admin.criticalItems.includes(code);
+      return `<tr>
+        <td><span class="code-chip ${isCrit?'crit':''}">${code}</span></td>
+        <td>${text}</td>
+        <td class="mono">${it.skor}</td>
+      </tr>`;
+    }).join('');
+    return `<div style="margin-bottom:10px;"><b style="font-size:12.5px;color:var(--ink);">${sec.code}. ${sec.title}</b>
+      <table><tbody>${rows}</tbody></table></div>`;
+  }).join('');
+
+  const sess = STATE.sessions.find(x=>x.id===a.sesiId);
+  const isOwner = a.emailAuditor === currentUser.email;
+  const sessionClosed = sess && sess.status==='Selesai';
+  const canManage = isAdmin() || (isOwner && !sessionClosed);
+  document.getElementById('auditDetailModalHost').innerHTML = `
+    <div style="position:fixed;inset:0;background:rgba(16,36,62,.45);z-index:900;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;" onclick="if(event.target===this) this.parentElement.innerHTML=''">
+      <div style="background:var(--paper-card);border-radius:12px;max-width:720px;width:100%;max-height:85vh;overflow:auto;padding:26px 28px;">
+        <div class="flex-between" style="margin-bottom:4px;">
+          <div class="display" style="font-size:18px;font-weight:700;color:var(--ink);">${a.namaMakmal}</div>
+          <button class="btn ghost" onclick="document.getElementById('auditDetailModalHost').innerHTML=''">✕ Tutup</button>
+        </div>
+        <div style="color:var(--text-mute);font-size:12.5px;margin-bottom:14px;">${a.kampus} · ${a.lokasi} · Auditor: ${a.auditor} · ${fmtDate(a.tarikh)} · Sesi: ${sessionName(a.sesiId)}</div>
+        ${sessionClosed && !isAdmin() ? `<div class="callout" style="margin-bottom:14px;">🔒 Sesi audit ini telah <b>ditandakan selesai</b> oleh Admin. Anda hanya boleh melihat laporan ini — pengeditan/pemadaman tidak lagi dibenarkan.</div>` : ''}
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          <span class="badge ${s.cls}">${s.status} · ${s.pct.toFixed(1)}%</span>
+          ${crit.length? `<span class="badge red">${crit.length} item kritikal gagal (${crit.join(', ')})</span>`:`<span class="badge green">Tiada kegagalan kritikal</span>`}
+          <span class="badge grey">${a.nc.length} NC · ${a.ofi.length} OFI</span>
+        </div>
+        ${sectionsHtml}
+        <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          ${canManage ? `<button class="btn" onclick="b1LoadForEdit(${a.id})">✎ Edit Pemarkahan</button>` : ''}
+          ${canManage ? `<button class="btn danger" onclick="deleteAuditRecord(${a.id})">🗑 Padam Pemarkahan</button>` : ''}
+          <select id="modalFormat-${a.id}" style="width:auto;">
+            <option value="word">Dokumen Word (.doc)</option>
+            <option value="html">Laman Web (.html)</option>
+            <option value="excel">Hamparan Excel (.xlsx)</option>
+          </select>
+          <button class="btn primary" onclick="generateDocument(${a.id}, document.getElementById('modalFormat-${a.id}').value)">⤓ Jana Dokumen</button>
+        </div>
+      </div>
+    </div>`;
+}
+function deleteAuditRecord(id){
+  const a = STATE.audits.find(x=>x.id===id);
+  if(!a) return;
+  const sess = STATE.sessions.find(x=>x.id===a.sesiId);
+  const isOwner = a.emailAuditor === currentUser.email;
+  const canManage = isAdmin() || (isOwner && !(sess && sess.status==='Selesai'));
+  if(!canManage){
+    toast('Sesi audit ini telah ditutup — pemarkahan tidak boleh dipadam lagi.');
+    return;
+  }
+  showConfirmModal(`Padam pemarkahan <b>"${a.namaMakmal}"</b>? Semua data checklist, NC dan OFI berkaitan akan turut dipadam. Tindakan ini tidak boleh dibatalkan.`, async function(){
+    const res = await apiCall('deleteAudit', { id });
+    if(!res.ok) return;
+    STATE.audits = STATE.audits.filter(x=>x.id!==id);
+    toast(`Pemarkahan "${a.namaMakmal}" telah dipadam.`);
+    nav('dashboard');
+  }, {confirmLabel:'🗑 Ya, Padam'});
+}
+
+/* ============ ADMIN ============ */
+function renderAdmin(){
+  const teklist = document.createElement('div');
+  document.getElementById('main').innerHTML = `
+    <div class="topline">
+      <div>
+        <h1 class="h1">Pengurusan Audit</h1>
+        <div class="h1-sub">Sesi audit, kapasiti makmal, item kritikal & struktur Borang 1</div>
+      </div>
+    </div>
+
+    <div class="section-title">Pengurusan Sesi Audit <div class="rule"></div></div>
+    <div class="callout" style="margin-bottom:16px;">Setiap pusingan audit (cth. setiap semester) diwakili oleh satu <b>Sesi Audit</b>. Audit baharu yang dicipta oleh Auditor akan sentiasa dikaitkan dengan sesi yang ditanda <b>"Sesi Semasa"</b>. Memadam sesi akan turut memadam SEMUA rekod audit di bawahnya secara kekal daripada paparan semua pengguna.</div>
+    <div class="card" style="margin-bottom:14px;">
+      <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+        <div class="field" style="flex:1;min-width:240px;margin-bottom:0;">
+          <label class="field-label">Nama Sesi Audit Baharu</label>
+          <input type="text" id="newSessionName" placeholder="cth. Sesi Audit Semester 2 2026/2027">
+        </div>
+        <button class="btn primary" onclick="adminCreateSession()">+ Cipta & Jadikan Sesi Semasa</button>
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table>
+        <thead><tr><th>Nama Sesi</th><th>Tarikh Mula</th><th>Status</th><th>Bil. Audit</th><th>Tindakan</th></tr></thead>
+        <tbody>
+          ${STATE.sessions.length ? STATE.sessions.map(s=>{
+            const count = STATE.audits.filter(a=>a.sesiId===s.id).length;
+            const isActive = STATE.activeSessionId===s.id;
+            return `<tr>
+              <td>${s.nama} ${isActive?'<span class="badge grey" style="margin-left:6px;">★ Sesi Semasa</span>':''}</td>
+              <td class="mono">${s.tarikhMula}</td>
+              <td><span class="badge ${s.status==='Aktif'?'green':'grey'}">${s.status}</span></td>
+              <td class="mono">${count}</td>
+              <td>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  ${!isActive && s.status==='Aktif' ? `<button class="btn sm" onclick="adminSetActiveSession(${s.id})">Jadikan Semasa</button>` : ''}
+                  <button class="btn sm" onclick="adminToggleSessionStatus(${s.id})">${s.status==='Aktif'?'Tandakan Selesai':'Buka Semula'}</button>
+                  <button class="btn sm danger" onclick="adminDeleteSession(${s.id})">🗑 Padam</button>
+                </div>
+              </td>
+            </tr>`;
+          }).join('') : `<tr><td colspan="5" class="empty">Tiada sesi audit lagi. Cipta satu di atas untuk mula.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-title">Kapasiti Makmal Mengikut Kampus <div class="rule"></div></div>
+    <div class="card grid cols-2">
+      <div class="field" style="margin-bottom:0;">
+        <label class="field-label">Jumlah Makmal — Kampus Teknologi</label>
+        <input type="number" id="admTek" min="0" value="${STATE.admin.teknologi}">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label class="field-label">Jumlah Makmal — Kampus Induk</label>
+        <input type="number" id="admInd" min="0" value="${STATE.admin.induk}">
+      </div>
+    </div>
+    <div style="margin-top:10px;">
+      <button class="btn primary" onclick="saveAdminCapacity()">Simpan Kapasiti</button>
+    </div>
+
+    <div class="section-title">Pelan Tindakan <div class="rule"></div></div>
+    <div class="callout">📋 Jana dokumen Pelan Tindakan (Word/Excel) merangkumi semua NCR dan Item Kritikal gagal dalam sesi audit dipaparkan — lengkap dengan lajur <b>Status Tindakan</b> dan <b>Tarikh Sasaran Pembetulan</b> untuk diisi secara manual semasa sesi susulan/pemantauan.</div>
+    <div class="card">
+      <div class="grid cols-2" style="align-items:end;">
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Skop</label>
+          <select id="planScope" onchange="renderPlanSubfilter()">
+            <option value="Semua">Semua Makmal (Kedua-dua Kampus)</option>
+            <option value="Kampus">Ikut Kampus</option>
+            <option value="Makmal">Makmal Individu</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0;" id="planSubfilterWrap"></div>
+      </div>
+      <div class="field" style="margin-top:10px;max-width:220px;">
+        <label class="field-label">Format Dokumen</label>
+        <select id="planFormat">
+          <option value="word">Dokumen Word (.doc)</option>
+          <option value="excel">Hamparan Excel (.xlsx)</option>
+        </select>
+      </div>
+      <div style="margin-top:14px;">
+        <button class="btn primary" onclick="generateActionPlan()">📋 Jana Pelan Tindakan</button>
+      </div>
+    </div>
+
+    <div class="section-title">Keselamatan Pemadaman Data <div class="rule"></div></div>
+    <div class="callout">Kata laluan ini akan diminta setiap kali sesiapa (Admin/Auditor) cuba memadam sesi audit atau rekod pemarkahan, sebagai langkah pencegahan padam tidak sengaja.</div>
+    <div class="card" style="max-width:360px;">
+      <div class="field" style="margin-bottom:0;">
+        <label class="field-label">Kata Laluan Pengesahan Padam</label>
+        <input type="text" id="admDeletePw" value="${STATE.admin.deletePassword}">
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn primary" onclick="saveDeletePassword()">Simpan Kata Laluan</button>
+      </div>
+    </div>
+
+    <div class="section-title">Struktur Borang 1 — Bahagian & Item Audit <div class="rule"></div></div>
+    <div class="callout">Tambah bahagian baharu (cth. selepas G), edit teks item sedia ada, tambah item baharu dalam mana-mana bahagian, atau padam item/bahagian yang tidak lagi releven. Perubahan terpakai serta-merta pada Borang 1 dan senarai Item Kritikal di bawah.</div>
+    ${SECTIONS.map(sec=>`
+      <div class="card" style="margin-bottom:12px;">
+        <div class="flex-between" style="margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:10px;flex:1;">
+            <span class="code-chip lg">${sec.code}</span>
+            <input type="text" value="${sec.title}" style="font-weight:600;" onchange="adminUpdateSectionTitle('${sec.code}', this.value)">
+          </div>
+          <button class="btn sm danger" onclick="adminDeleteSection('${sec.code}')">🗑 Padam Bahagian</button>
+        </div>
+        ${sec.items.map(([code,text])=>`
+          <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line-soft);">
+            <span class="code-chip">${code}</span>
+            <input type="text" value="${text}" style="flex:1;" onchange="adminUpdateItemText('${sec.code}','${code}', this.value)">
+            <button class="btn sm danger" onclick="adminDeleteItem('${sec.code}','${code}')">🗑</button>
+          </div>`).join('')}
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <input type="text" id="newItemText-${sec.code}" placeholder="Teks item baharu untuk Bahagian ${sec.code}..." style="flex:1;">
+          <button class="btn sm" onclick="adminAddItem('${sec.code}')">+ Tambah Item</button>
+        </div>
+      </div>`).join('')}
+    <div class="card" style="display:flex;gap:8px;align-items:end;">
+      <div class="field" style="flex:1;margin-bottom:0;">
+        <label class="field-label">Nama Bahagian Baharu (kod diberi automatik, cth. H)</label>
+        <input type="text" id="newSectionTitle" placeholder="cth. Ergonomik & Kesihatan Pekerjaan">
+      </div>
+      <button class="btn primary" onclick="adminAddSection()">+ Tambah Bahagian Baharu</button>
+    </div>
+
+    <div class="section-title">Item Kritikal dalam Pengiraan Audit <div class="rule"></div></div>
+    <div class="callout">
+      <b>Cadangan sistem:</b> ${CRITICAL_DEFAULT.length} item telah pra-ditanda kritikal — dipilih kerana berkait terus dengan risiko nyawa, kebakaran, elektrik dan pematuhan berkanun (Akta Keselamatan & Kesihatan Pekerjaan 1994 / Peraturan berkaitan). Saudara boleh ubah suai pilihan ini mengikut budi bicara Jawatankuasa OSH.
+      Sebarang makmal yang mendapat skor <b>0 (Tidak Patuh)</b> pada mana-mana item bertanda kritikal akan ditandakan <b>"KKP Kritikal"</b> di dashboard — tanpa mengira peratus keseluruhan.
+    </div>
+    <div class="card">
+      ${SECTIONS.map(sec=>`
+        <div style="margin-bottom:14px;">
+          <div style="font-weight:600;font-size:12.5px;color:var(--ink);margin-bottom:6px;">${sec.code}. ${sec.title}</div>
+          <div class="critical-list">
+            ${sec.items.map(([code,text])=>`
+              <label class="crit-check">
+                <input type="checkbox" data-code="${code}" ${STATE.admin.criticalItems.includes(code)?'checked':''}>
+                <span class="txt"><span class="code-chip" style="margin-right:6px;">${code}</span>${text}${CRITICAL_RATIONALE[code]?`<br><span style="color:var(--text-mute);font-size:11.5px;">↳ ${CRITICAL_RATIONALE[code]}</span>`:''}</span>
+              </label>`).join('')}
+          </div>
+        </div>`).join('')}
+      <button class="btn primary" onclick="saveAdminCritical()">Simpan Senarai Item Kritikal</button>
+    </div>
+  `;
+  renderPlanSubfilter();
+}
+function renderPlanSubfilter(){
+  const scope = document.getElementById('planScope').value;
+  const wrap = document.getElementById('planSubfilterWrap');
+  if(scope==='Kampus'){
+    wrap.innerHTML = `<label class="field-label">Pilih Kampus</label>
+      <select id="planKampus">
+        <option>Kampus Teknologi</option>
+        <option>Kampus Induk</option>
+      </select>`;
+  } else if(scope==='Makmal'){
+    const focusSessionId = dashboardFocusSessionId ? dashboardFocusSessionId() : STATE.activeSessionId;
+    const list = STATE.audits.filter(a=>a.statusRekod!=='Draf' && a.sesiId===focusSessionId);
+    wrap.innerHTML = `<label class="field-label">Pilih Makmal</label>
+      <select id="planMakmal">
+        ${list.map(a=>`<option value="${a.id}">${a.namaMakmal} — ${a.kampus}</option>`).join('')}
+      </select>`;
+  } else {
+    wrap.innerHTML = '';
+  }
+}
+function generateActionPlan(){
+  const scope = document.getElementById('planScope').value;
+  const format = document.getElementById('planFormat').value;
+  const focusSessionId = dashboardFocusSessionId ? dashboardFocusSessionId() : STATE.activeSessionId;
+  let list = STATE.audits.filter(a=>a.statusRekod!=='Draf' && a.sesiId===focusSessionId);
+  let scopeLabel = 'Semua Makmal';
+  if(scope==='Kampus'){
+    const k = document.getElementById('planKampus').value;
+    list = list.filter(a=>a.kampus===k);
+    scopeLabel = k;
+  } else if(scope==='Makmal'){
+    const id = document.getElementById('planMakmal').value;
+    list = list.filter(a=>String(a.id)===String(id));
+    scopeLabel = list.length ? list[0].namaMakmal : 'Makmal';
+  }
+  if(!list.length){ toast('Tiada rekod audit untuk skop ini.'); return; }
+
+  // Kumpulkan NCR + Item Kritikal gagal merentasi makmal dalam skop
+  const entries = [];
+  list.forEach(a=>{
+    a.nc.forEach((n,i)=> entries.push({
+      jenis:'NCR', makmal:a.namaMakmal, kampus:a.kampus, seksyen:n.seksyen, teksSeksyen:itemText(n.seksyen),
+      perincian: n.penemuan||'', cadangan: n.tindakan||''
+    }));
+    STATE.admin.criticalItems.forEach(kod=>{
+      const it = a.items[kod];
+      if(it && it.skor==='0'){
+        entries.push({
+          jenis:'Kritikal', makmal:a.namaMakmal, kampus:a.kampus, seksyen:kod, teksSeksyen:itemText(kod),
+          perincian: it.catatan||'(Item kritikal gagal - skor 0)', cadangan:''
+        });
+      }
+    });
+  });
+  if(!entries.length){ toast('Tiada NCR atau Item Kritikal gagal untuk skop ini — tiada Pelan Tindakan diperlukan.'); return; }
+
+  if(format==='excel'){
+    const rows = [['Bil','Jenis','Makmal','Kampus','Seksyen','Item Seksyen','Perincian Penemuan','Cadangan Tindakan','Status Tindakan','Tarikh Sasaran Pembetulan']];
+    entries.forEach((e,i)=> rows.push([i+1, e.jenis, e.makmal, e.kampus, e.seksyen, e.teksSeksyen, e.perincian, e.cadangan, '', '']));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:5},{wch:10},{wch:22},{wch:15},{wch:8},{wch:32},{wch:32},{wch:28},{wch:16},{wch:18}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Pelan Tindakan');
+    XLSX.writeFile(wb, `Pelan_Tindakan_${scopeLabel.replace(/\s+/g,'_')}.xlsx`);
+    toast(`Fail Excel Pelan Tindakan (${scopeLabel}) dijana & dimuat turun.`);
+    return;
+  }
+
+  const rows = entries.map((e,i)=>`
+    <tr>
+      <td class="c">${i+1}</td>
+      <td class="c" style="font-weight:bold;color:${e.jenis==='Kritikal'?'#B23A2E':'#C97A2B'};">${e.jenis}</td>
+      <td>${e.makmal}</td><td>${e.kampus}</td><td class="c">${e.seksyen}</td><td>${e.teksSeksyen}</td>
+      <td>${e.perincian}</td><td>${e.cadangan||'-'}</td>
+      <td style="min-width:110px;">&nbsp;</td><td style="min-width:100px;">&nbsp;</td>
+    </tr>`).join('');
+  const focusSess = STATE.sessions.find(s=>s.id===focusSessionId);
+  const doc = `<!DOCTYPE html><html lang="ms"><head><meta charset="UTF-8"><title>Pelan Tindakan — ${scopeLabel}</title>
+  <style>
+    body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;max-width:1100px;margin:30px auto;padding:0 20px;line-height:1.5;}
+    h1{font-size:19px;text-align:center;margin-bottom:2px;}
+    h2{font-size:13px;color:#555;text-align:center;margin-top:0;font-weight:normal;}
+    table{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:18px;}
+    th,td{border:1px solid #ccc;padding:6px 7px;text-align:left;vertical-align:top;}
+    td.c,th.c{text-align:center;}
+    th{background:#F0EEE6;}
+    .meta{font-size:12.5px;margin:16px 0;text-align:center;color:#333;}
+    @media print{ body{margin:0;} }
+  </style></head><body>
+  <h1>PELAN TINDAKAN — AUDIT OSH MAKMAL FTKE</h1>
+  <h2>Skop: ${scopeLabel} · ${focusSess?focusSess.nama:'-'} · Dijana ${fmtDate(new Date().toISOString())}</h2>
+  <div class="meta"><b>Jumlah Item:</b> ${entries.length} (NCR: ${entries.filter(e=>e.jenis==='NCR').length}, Kritikal: ${entries.filter(e=>e.jenis==='Kritikal').length})</div>
+  <table>
+    <thead><tr><th class="c">Bil</th><th class="c">Jenis</th><th>Makmal</th><th>Kampus</th><th class="c">Seksyen</th><th>Item Seksyen</th><th>Perincian Penemuan</th><th>Cadangan Tindakan</th><th>Status Tindakan</th><th>Tarikh Sasaran</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  </body></html>`;
+
+  const blob = new Blob(['\ufeff'+doc], {type:'application/msword'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `Pelan_Tindakan_${scopeLabel.replace(/\s+/g,'_')}.doc`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  toast(`Dokumen Word Pelan Tindakan (${scopeLabel}) dijana & dimuat turun.`);
+}
+function renderAdminUsers(){
+  document.getElementById('main').innerHTML = `
+    <div class="topline">
+      <div>
+        <h1 class="h1">Pengurusan Pengguna</h1>
+        <div class="h1-sub">Kelulusan pendaftaran, senarai pengguna & peranan</div>
+      </div>
+    </div>
+
+    ${STATE.pendingRegistrations.length ? `
+    <div class="section-title">Permohonan Pendaftaran Menunggu Kelulusan <div class="rule"></div></div>
+    <div class="callout warn">Pengguna baharu memohon akses melalui skrin log masuk. Semak butiran dan pilih peranan sebelum <b>Terima</b>, atau <b>Tolak</b> jika tidak layak.</div>
+    ${STATE.pendingRegistrations.map(r=>`
+      <div class="card" style="margin-bottom:10px;">
+        <div class="grid cols-2" style="margin-bottom:10px;">
+          <div><div class="stat-label">Nama</div><div style="font-weight:600;">${r.nama}</div></div>
+          <div><div class="stat-label">E-mel</div><div class="mono">${r.email}</div></div>
+          <div><div class="stat-label">Kampus Dicadangkan</div><div>${r.kampus}</div></div>
+          <div><div class="stat-label">Tarikh Mohon</div><div>${fmtDate(r.tarikhMohon)}</div></div>
+        </div>
+        ${r.alasan ? `<div class="stat-note" style="margin-bottom:10px;">Catatan pemohon: "${r.alasan}"</div>` : ''}
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <select id="approveRole-${r.id}" style="width:auto;">
+            <option value="Auditor">Auditor</option>
+            <option value="Admin">Admin</option>
+          </select>
+          <button class="btn primary" onclick="adminApproveRegistration(${r.id})">✅ Terima</button>
+          <button class="btn danger" onclick="adminRejectRegistration(${r.id})">❌ Tolak</button>
+        </div>
+      </div>`).join('')}
+    ` : ''}
+
+    <div class="section-title">Senarai Pengguna <div class="rule"></div></div>
+    <div class="callout">Senarai ini menentukan siapa boleh log masuk dan peranan mereka (Admin/Auditor).</div>
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:14px;">
+      <table>
+        <thead><tr><th>Nama</th><th>E-mel</th><th>Peranan</th><th>Kampus Ditugaskan</th><th>Status</th><th>Tindakan</th></tr></thead>
+        <tbody>
+          ${USERS.map(u=>`
+            <tr>
+              <td>${u.nama} ${u.id===currentUser.id?'<span class="badge grey" style="margin-left:6px;">Anda</span>':''}</td>
+              <td class="mono" style="font-size:12px;">${u.email}</td>
+              <td>
+                <select onchange="adminUpdateUserRole(${u.id}, this.value)" style="width:auto;">
+                  <option value="Admin" ${u.peranan==='Admin'?'selected':''}>Admin</option>
+                  <option value="Auditor" ${u.peranan==='Auditor'?'selected':''}>Auditor</option>
+                </select>
+              </td>
+              <td>
+                <select onchange="adminUpdateUserKampus(${u.id}, this.value)" style="width:auto;">
+                  <option value="Kedua-Dua" ${u.kampus==='Kedua-Dua'?'selected':''}>Kedua-Dua</option>
+                  <option value="Kampus Teknologi" ${u.kampus==='Kampus Teknologi'?'selected':''}>Kampus Teknologi</option>
+                  <option value="Kampus Induk" ${u.kampus==='Kampus Induk'?'selected':''}>Kampus Induk</option>
+                </select>
+              </td>
+              <td><span class="badge ${u.aktif!==false?'green':'grey'}">${u.aktif!==false?'Aktif':'Tidak Aktif'}</span></td>
+              <td>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button class="btn sm" onclick="adminToggleUserAktif(${u.id})">${u.aktif!==false?'Nyahaktif':'Aktifkan'}</button>
+                  <button class="btn sm danger" onclick="adminDeleteUser(${u.id})">🗑 Padam</button>
+                </div>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="card" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+      <div class="field" style="flex:1;min-width:180px;margin-bottom:0;">
+        <label class="field-label">Nama Penuh</label>
+        <input type="text" id="newUserNama" placeholder="cth. En. Ahmad Fauzi">
+      </div>
+      <div class="field" style="flex:1;min-width:200px;margin-bottom:0;">
+        <label class="field-label">E-mel UTeM</label>
+        <input type="text" id="newUserEmail" placeholder="ahmad.fauzi@utem.edu.my">
+      </div>
+      <div class="field" style="min-width:160px;margin-bottom:0;">
+        <label class="field-label">Kata Laluan Awal</label>
+        <input type="password" id="newUserPassword" placeholder="Min. 6 aksara">
+      </div>
+      <div class="field" style="min-width:130px;margin-bottom:0;">
+        <label class="field-label">Peranan</label>
+        <select id="newUserPeranan">
+          <option value="Auditor">Auditor</option>
+          <option value="Admin">Admin</option>
+        </select>
+      </div>
+      <div class="field" style="min-width:150px;margin-bottom:0;">
+        <label class="field-label">Kampus</label>
+        <select id="newUserKampus">
+          <option value="Kedua-Dua">Kedua-Dua</option>
+          <option value="Kampus Teknologi">Kampus Teknologi</option>
+          <option value="Kampus Induk">Kampus Induk</option>
+        </select>
+      </div>
+      <button class="btn primary" onclick="adminAddUser()">+ Tambah Pengguna</button>
+    </div>
+  `;
+}
+
+function saveAdminCapacity(){
+  STATE.admin.teknologi = Number(document.getElementById('admTek').value)||0;
+  STATE.admin.induk = Number(document.getElementById('admInd').value)||0;
+  toast('Kapasiti makmal disimpan.');
+}
+function saveDeletePassword(){
+  const v = document.getElementById('admDeletePw').value.trim();
+  if(!v){ toast('Kata laluan tidak boleh kosong.'); return; }
+  STATE.admin.deletePassword = v;
+  toast('Kata laluan pengesahan padam dikemas kini.');
+}
+function saveAdminCritical(){
+  const boxes = document.querySelectorAll('.crit-check input[type=checkbox]');
+  const chosen = [];
+  boxes.forEach(b=>{ if(b.checked) chosen.push(b.dataset.code); });
+  STATE.admin.criticalItems = chosen;
+  toast(`Senarai item kritikal dikemas kini (${chosen.length} item).`);
+}
+
+/* ============ BORANG 1 (WIZARD) ============ */
+let b1 = null;
+function freshB1(){
+  return {
+    step:0,
+    editingId:null, // null = audit baharu; diisi apabila menyambung draf atau mengedit rekod sedia ada
+    general:{kampus:'Kampus Teknologi', namaMakmal:'', lokasi:'', tarikh:'', auditor:'', pic:''},
+    items: blankItems()
+  };
+}
+function b2GoTo(id){
+  const a = STATE.audits.find(x=>x.id===id);
+  if(!a) return;
+  if(!isAdmin() && a.emailAuditor !== currentUser.email){ toast('Rekod ini bukan milik anda.'); return; }
+  b2 = freshB2();
+  b2.auditId = id;
+  nav('borang2');
+}
+function b1LoadForEdit(id){
+  const a = STATE.audits.find(x=>String(x.id)===String(id));
+  if(!a) return;
+  const sess = STATE.sessions.find(x=>x.id===a.sesiId);
+  const sessionClosed = sess && sess.status==='Selesai';
+  if(!isAdmin() && a.emailAuditor !== currentUser.email){
+    toast('Anda hanya boleh edit audit yang anda cipta sendiri.'); return;
+  }
+  if(!isAdmin() && sessionClosed){
+    toast('Sesi audit ini telah ditandakan selesai — hanya papar sahaja dibenarkan.'); return;
+  }
+  b1 = freshB1();
+  b1.editingId = a.id;
+  b1.general = {kampus:a.kampus, namaMakmal:a.namaMakmal, lokasi:a.lokasi, tarikh:a.tarikh, auditor:a.auditor, pic:a.pic};
+  b1.items = JSON.parse(JSON.stringify(a.items));
+  b1.step = 0;
+  document.getElementById('auditDetailModalHost') && (document.getElementById('auditDetailModalHost').innerHTML = '');
+  nav('borang1');
+  toast(a.statusRekod==='Draf' ? 'Menyambung draf sedia ada.' : `Mengedit pemarkahan "${a.namaMakmal}".`);
+}
+function b1SectionComplete(idx){
+  if(idx===0){
+    return !!(b1.general.namaMakmal && b1.general.lokasi && b1.general.auditor);
+  }
+  if(idx>=1 && idx<=SECTIONS.length){
+    const sec = SECTIONS[idx-1];
+    return sec.items.every(([code])=> b1.items[code] && b1.items[code].skor!==null);
+  }
+  return false;
+}
+function renderBorang1(){
+  if(!b1) b1 = freshB1();
+  const steps = ['Maklumat Am', ...SECTIONS.map(s=>s.code), 'Semakan'];
+  const railHtml = steps.map((label,i)=>{
+    const cls = i===b1.step ? 'active' : (b1SectionComplete(i) ? 'done' : '');
+    const dotLabel = i===0 ? '1' : (i===steps.length-1 ? '✓' : label);
+    return `<div class="rail-step ${cls}" onclick="b1GoStep(${i})"><span class="dot">${dotLabel}</span>${i===0?'Maklumat Am': i===steps.length-1 ? 'Semakan' : 'Bhg. '+label}</div>${i<steps.length-1?'<span class="rail-arrow">›</span>':''}`;
+  }).join('');
+
+  let body = '';
+  if(b1.step===0){
+    const sesiPaparan = b1.editingId
+      ? sessionName((STATE.audits.find(a=>a.id===b1.editingId)||{}).sesiId)
+      : (getActiveSession() ? getActiveSession().nama : '⚠ Tiada sesi aktif');
+    body = `
+      <div class="field">
+        <label class="field-label">Sesi Audit</label>
+        <input type="text" value="${sesiPaparan}" disabled style="background:var(--steel-light);color:var(--ink-soft);cursor:not-allowed;">
+      </div>
+      <div class="grid cols-2">
+        <div class="field">
+          <label class="field-label">Kampus</label>
+          <select onchange="b1.general.kampus=this.value">
+            <option ${b1.general.kampus==='Kampus Teknologi'?'selected':''}>Kampus Teknologi</option>
+            <option ${b1.general.kampus==='Kampus Induk'?'selected':''}>Kampus Induk</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Nama Makmal</label>
+          <input type="text" value="${b1.general.namaMakmal}" oninput="b1.general.namaMakmal=this.value" placeholder="cth. Makmal Elektronik Kuasa">
+        </div>
+        <div class="field">
+          <label class="field-label">Lokasi Makmal</label>
+          <input type="text" value="${b1.general.lokasi}" oninput="b1.general.lokasi=this.value" placeholder="cth. Blok E, Aras 1">
+        </div>
+        <div class="field">
+          <label class="field-label">Tarikh & Masa Audit</label>
+          <input type="datetime-local" value="${b1.general.tarikh}" oninput="b1.general.tarikh=this.value">
+        </div>
+        <div class="field">
+          <label class="field-label">Nama Auditor</label>
+          <input type="text" value="${b1.general.auditor}" oninput="b1.general.auditor=this.value">
+        </div>
+        <div class="field">
+          <label class="field-label">Nama PIC Makmal</label>
+          <input type="text" value="${b1.general.pic}" oninput="b1.general.pic=this.value">
+        </div>
+      </div>`;
+  } else if(b1.step>=1 && b1.step<=SECTIONS.length){
+    const sec = SECTIONS[b1.step-1];
+    const answeredInSec = sec.items.filter(([code])=>b1.items[code].skor!==null).length;
+    body = `<div class="flex-between" style="margin-bottom:14px;">
+        <div class="display" style="font-size:15px;font-weight:600;color:var(--ink);">${sec.code}. ${sec.title}</div>
+        <span class="badge ${answeredInSec===sec.items.length?'green':'amber'}">${answeredInSec}/${sec.items.length} dijawab</span>
+      </div>` +
+      sec.items.map(([code,text])=>{
+        const isCrit = STATE.admin.criticalItems.includes(code);
+        const it = b1.items[code];
+        const unanswered = it.skor===null;
+        return `<div class="item-row ${isCrit?'crit':''}" style="${unanswered?'border-left:3px solid var(--amber);':''}">
+          <div class="item-head">
+            <span class="code-chip ${isCrit?'crit':''} lg">${code}</span>
+            <div class="item-text">${text}${isCrit?' <span class="badge red" style="margin-left:6px;">Kritikal</span>':''}${unanswered?' <span class="badge amber" style="margin-left:6px;">Belum dijawab</span>':''}</div>
+          </div>
+          <div class="scale">
+            ${['2','1','0','NA'].map(v=>`
+              <label class="s${v.toLowerCase()}">
+                <input type="radio" name="skor-${code}" value="${v}" ${it.skor===v?'checked':''} onchange="b1.items['${code}'].skor='${v}'; renderBorang1();">
+                <span>${v==='2'?'2 · Patuh':v==='1'?'1 · Perlu Penambahbaikan':v==='0'?'0 · Tidak Patuh':'NA'}</span>
+              </label>`).join('')}
+          </div>
+          <input type="text" placeholder="Catatan (pilihan)" value="${it.catatan}" oninput="b1.items['${code}'].catatan=this.value">
+        </div>`;
+      }).join('');
+  } else {
+    const s = computeScore(b1.items);
+    const unansweredTotal = countUnanswered(b1.items);
+    const crit = STATE.admin.criticalItems.filter(c=>b1.items[c].skor==='0');
+    const incompleteSections = SECTIONS.map((sec,i)=>{
+      const missing = sec.items.filter(([code])=> !b1.items[code] || b1.items[code].skor===null).length;
+      return {sec, stepIdx:i+1, missing};
+    }).filter(x=>x.missing>0);
+    body = `
+      <div class="callout ${(crit.length||unansweredTotal)?'warn':''}">
+        <b>Rumusan Audit:</b> Jumlah skor ${s.sum} / ${s.max} — <b>${s.pct.toFixed(1)}%</b> — Status: <b>${s.status}</b>.
+        ${crit.length ? `<br><b>Amaran:</b> ${crit.length} item kritikal bertanda "Tidak Patuh" (${crit.join(', ')}). Ini akan ditandakan sebagai KKP Kritikal.` : '<br>Tiada kegagalan pada item kritikal.'}
+        ${unansweredTotal ? `<br><b>⚠ ${unansweredTotal} daripada ${getAllCodes().length} item masih belum dijawab.</b> Sila lengkapkan semua bahagian sebelum menghantar (atau guna "Simpan Draf" untuk sambung kemudian).` : ''}
+      </div>
+      ${incompleteSections.length ? `
+      <div class="card" style="border:1.5px solid var(--amber);margin-bottom:16px;">
+        <div style="font-weight:700;color:var(--amber);margin-bottom:10px;">📋 Bahagian belum lengkap — klik untuk terus ke bahagian berkenaan:</div>
+        ${incompleteSections.map(x=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--line-soft);">
+            <div><b>Bahagian ${x.sec.code}.</b> ${x.sec.title} <span class="badge amber" style="margin-left:6px;">${x.missing} item belum dijawab</span></div>
+            <button class="btn sm" onclick="b1GoStep(${x.stepIdx})">Isi Sekarang →</button>
+          </div>`).join('')}
+      </div>` : ''}
+      <div class="grid cols-2">
+        <div class="card"><div class="stat-label">Makmal</div><div style="font-weight:600;">${b1.general.namaMakmal||'-'}</div><div class="stat-note">${b1.general.kampus} · ${b1.general.lokasi||'-'}</div></div>
+        <div class="card"><div class="stat-label">Auditor / PIC</div><div style="font-weight:600;">${b1.general.auditor||'-'}</div><div class="stat-note">PIC: ${b1.general.pic||'-'}</div></div>
+      </div>
+      <div class="stat-note" style="margin-top:14px;">Semak semula bahagian dengan klik pada label bahagian di atas jika perlu pembetulan, atau hantar borang untuk simpan ke pangkalan data.</div>
+    `;
+  }
+
+  document.getElementById('main').innerHTML = `
+    <div class="topline">
+      <div>
+        <h1 class="h1">Borang 1 · Checklist Audit</h1>
+        <div class="h1-sub">Isi mengikut bahagian — sistem akan mengira skor secara automatik</div>
+      </div>
+    </div>
+    ${b1.editingId ? `<div class="callout warn" style="margin-bottom:16px;">✎ Anda sedang ${STATE.audits.find(a=>a.id===b1.editingId)?.statusRekod==='Draf' ? 'menyambung draf' : 'mengedit rekod yang telah dihantar'} bagi <b>${b1.general.namaMakmal||'makmal ini'}</b>. Perubahan akan mengemas kini rekod sedia ada, bukan cipta rekod baharu.</div>` : ''}
+    <div class="rail">${railHtml}</div>
+    <div class="card">${body}</div>
+    <div class="wizard-foot">
+      <button class="btn" ${b1.step===0?'disabled':''} onclick="b1Prev()">← Kembali</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" onclick="b1SaveDraft()">💾 Simpan Draf & Keluar</button>
+        ${b1.step < steps.length-1
+          ? `<button class="btn primary" onclick="b1Next()">Seterusnya →</button>`
+          : `<button class="btn primary" ${countUnanswered(b1.items)?'disabled title="Lengkapkan semua item dahulu"':''} onclick="b1Submit()">✓ ${b1.editingId ? 'Kemas Kini & Hantar' : 'Hantar & Simpan Audit'}</button>`}
+      </div>
+    </div>
+  `;
+}
+function b1GoStep(i){ b1.step=i; renderBorang1(); }
+function b1Next(){
+  if(b1.step===0){
+    if(!b1.general.namaMakmal || !b1.general.lokasi || !b1.general.auditor){
+      toast('Sila lengkapkan Nama Makmal, Lokasi dan Auditor dahulu.'); return;
+    }
+  }
+  b1.step++; renderBorang1();
+}
+function b1Prev(){ b1.step--; renderBorang1(); }
+async function b1SaveDraft(){
+  if(!b1.general.namaMakmal){
+    toast('Sila isi sekurang-kurangnya Nama Makmal sebelum simpan draf.'); return;
+  }
+  if(!b1.editingId && !getActiveSession()){
+    toast('Tiada sesi audit aktif — tidak boleh cipta audit baharu.'); return;
+  }
+  const payload = {
+    kampus:b1.general.kampus, namaMakmal:b1.general.namaMakmal, lokasi:b1.general.lokasi,
+    tarikh:b1.general.tarikh || new Date().toISOString(),
+    auditor:b1.general.auditor || currentUser.nama, emailAuditor: currentUser.email, pic:b1.general.pic,
+    items: b1.items, nc: [], ofi: [], statusRekod:'Draf'
+  };
+  if(b1.editingId){
+    const existing = STATE.audits.find(a=>a.id===b1.editingId);
+    const merged = {...existing, ...payload, sesiId: existing.sesiId};
+    const res = await apiCall('saveAudit', { audit: {...merged, id:b1.editingId} });
+    if(!res.ok) return;
+    const idx = STATE.audits.findIndex(a=>a.id===b1.editingId);
+    if(idx>-1) STATE.audits[idx] = merged;
+  } else {
+    const res = await apiCall('saveAudit', { audit: {sesiId:STATE.activeSessionId, ...payload} });
+    if(!res.ok) return;
+    STATE.audits.push({id:res.id, sesiId:STATE.activeSessionId, ...payload});
+    b1.editingId = res.id;
+  }
+  toast('Draf disimpan. Sambung bila-bila masa dari Dashboard.');
+  b1 = freshB1();
+  nav('dashboard');
+}
+async function b1Submit(){
+  if(!b1.editingId && !getActiveSession()){
+    toast('Tiada sesi audit aktif — tidak boleh cipta audit baharu.'); return;
+  }
+  if(countUnanswered(b1.items) > 0){
+    toast('Sila lengkapkan semua item sebelum menghantar. Guna "Simpan Draf" jika belum bersedia.'); return;
+  }
+  let id, isFreshCompletion, targetStatus;
+  if(b1.editingId){
+    const existing = STATE.audits.find(a=>a.id===b1.editingId);
+    isFreshCompletion = existing && (existing.statusRekod==='Draf' || existing.statusRekod==='MenungguBorang2');
+    targetStatus = (existing && existing.statusRekod==='Selesai') ? 'Selesai' : 'MenungguBorang2';
+    const payload = {
+      kampus:b1.general.kampus, namaMakmal:b1.general.namaMakmal, lokasi:b1.general.lokasi,
+      tarikh:b1.general.tarikh || new Date().toISOString(), auditor:b1.general.auditor,
+      emailAuditor: currentUser.email, pic:b1.general.pic,
+      items: b1.items, statusRekod: targetStatus
+    };
+    id = b1.editingId;
+    const merged = {...existing, ...payload, nc: existing.nc||[], ofi: existing.ofi||[]};
+    const res = await apiCall('saveAudit', { audit: {...merged, id} });
+    if(!res.ok) return;
+    const idx = STATE.audits.findIndex(a=>a.id===id);
+    if(idx>-1) STATE.audits[idx] = merged;
+  } else {
+    const payload = {
+      kampus:b1.general.kampus, namaMakmal:b1.general.namaMakmal, lokasi:b1.general.lokasi,
+      tarikh:b1.general.tarikh || new Date().toISOString(), auditor:b1.general.auditor,
+      emailAuditor: currentUser.email, pic:b1.general.pic,
+      items: b1.items, statusRekod:'MenungguBorang2'
+    };
+    const res = await apiCall('saveAudit', { audit: {sesiId:STATE.activeSessionId, nc:[], ofi:[], ...payload} });
+    if(!res.ok) return;
+    id = res.id;
+    STATE.audits.push({id, sesiId:STATE.activeSessionId, nc:[], ofi:[], ...payload});
+    isFreshCompletion = true;
+  }
+  toast(isFreshCompletion ? `Borang 1 disimpan. Sila lengkapkan & sahkan Borang 2 untuk selesaikan audit ini.` : `Pemarkahan "${b1.general.namaMakmal}" dikemas kini.`);
+  b1 = freshB1();
+  if(isFreshCompletion){
+    b2 = freshB2();
+    b2.auditId = id;
+    nav('borang2');
+  } else {
+    nav('dashboard');
+  }
+}
+
+/* ============ BORANG 2 (NC / OFI) ============ */
+let b2 = null;
+function freshB2(){
+  return { auditId:null, nc:[], ofi:[] };
+}
+function sectionOptions(selected){
+  return SECTIONS.map(sec=>`<optgroup label="${sec.code}. ${sec.title}">
+    ${sec.items.map(([code,text])=>`<option value="${code}" ${selected===code?'selected':''}>${code} — ${text.slice(0,46)}${text.length>46?'…':''}</option>`).join('')}
+  </optgroup>`).join('');
+}
+function renderBorang2(){
+  if(!b2) b2 = freshB2();
+  // Senarai makmal yang BOLEH dipilih pengguna ini: audit "Selesai" ATAU "MenungguBorang2" milik sendiri (Admin: semua)
+  const availableAudits = STATE.audits.filter(a=>{
+    if(a.statusRekod !== 'Selesai' && a.statusRekod !== 'MenungguBorang2') return false;
+    if(isAdmin()) return true;
+    return a.emailAuditor === currentUser.email;
+  });
+  // Jika audit yang sedang dipilih bukan milik pengguna ini / tiada akses, batalkan pemilihan (elak papar data orang lain)
+  if(b2.auditId && !availableAudits.some(a=>String(a.id)===String(b2.auditId))){
+    b2.auditId = null;
+  }
+  const audit = STATE.audits.find(a=>String(a.id)===String(b2.auditId));
+  const s = audit ? computeScore(audit.items) : null;
+  const sess = audit ? STATE.sessions.find(x=>x.id===audit.sesiId) : null;
+  const sessionClosed = sess && sess.status==='Selesai';
+  const readOnly = sessionClosed && !isAdmin();
+  const isPending = audit && audit.statusRekod === 'MenungguBorang2';
+
+  const generalBlock = `
+    <div class="section-title" style="margin-top:0;">1. Maklumat Am & Rumusan Keputusan <div class="rule"></div></div>
+    <div class="card">
+      <div class="field">
+        <label class="field-label">Pilih Makmal (ditarik dari Borang 1 anda sahaja)</label>
+        <select onchange="b2.auditId=this.value; renderBorang2()">
+          <option value="">— Pilih makmal —</option>
+          ${availableAudits.map(a=>`<option value="${a.id}" ${String(a.id)===String(b2.auditId)?'selected':''}>${a.namaMakmal} — ${a.kampus} (${fmtDate(a.tarikh)}) ${a.statusRekod==='MenungguBorang2'?'⏳':''}</option>`).join('')}
+        </select>
+        ${!availableAudits.length ? `<div class="stat-note" style="margin-top:6px;">Anda belum ada audit Borang 1 yang lengkap. Lengkapkan Borang 1 dahulu sebelum boleh melapor NC/OFI.</div>` : ''}
+      </div>
+      ${audit ? `
+      <div class="grid cols-2" style="margin-top:6px;">
+        <div><div class="stat-label">Kampus</div><div>${audit.kampus}</div></div>
+        <div><div class="stat-label">Nama Makmal</div><div>${audit.namaMakmal}</div></div>
+        <div><div class="stat-label">Lokasi / Blok</div><div>${audit.lokasi}</div></div>
+        <div><div class="stat-label">Tarikh & Masa Audit</div><div>${fmtDate(audit.tarikh)}</div></div>
+        <div><div class="stat-label">Nama Auditor</div><div>${audit.auditor}</div></div>
+        <div><div class="stat-label">Nama PIC Makmal</div><div>${audit.pic}</div></div>
+        <div><div class="stat-label">Skor Keseluruhan (%)</div><div class="mono">${s.pct.toFixed(1)}%</div></div>
+        <div><div class="stat-label">Status Pematuhan</div><div><span class="badge ${s.cls}">${s.status}</span></div></div>
+      </div>
+      ${isPending ? `<div class="callout warn" style="margin-top:12px;">⏳ <b>Audit ini masih BELUM SELESAI.</b> Borang 1 telah lengkap, tetapi status akan kekal "Menunggu" sehingga saudara sahkan Borang 2 di bawah — walaupun tiada NCR/OFI untuk dilaporkan, tekan <b>"✓ Terima & Selesaikan Audit"</b> untuk tandakan selesai sepenuhnya.</div>` : ''}
+      ${readOnly ? `<div class="callout" style="margin-top:12px;">🔒 Sesi audit ini telah ditandakan selesai — anda hanya boleh melihat laporan NC/OFI sedia ada, tidak boleh tambah/ubah lagi.</div>` : ''}
+      ` : `<div class="empty">Pilih makmal untuk paparkan maklumat am (ditarik automatik daripada Borang 1).</div>`}
+    </div>`;
+
+  if(!audit){
+    document.getElementById('main').innerHTML = `
+      <div class="topline"><div><h1 class="h1">Borang 2 · Laporan NC / OFI</h1><div class="h1-sub">Pilih makmal yang telah diaudit untuk mula melapor</div></div></div>
+      ${generalBlock}`;
+    return;
+  }
+
+  const ncBlock = readOnly ? `
+    <div class="section-title">2. Laporan Ketidakpatuhan (Non-Conformity — NC) <div class="rule"></div></div>
+    ${audit.nc.length ? audit.nc.map((n,i)=>`
+      <div class="nc-card">
+        <div class="nc-num" style="margin-bottom:8px;">NC — Bil ${i+1} · Seksyen ${n.seksyen}</div>
+        ${n.gambar?`<img class="photo-thumb" src="${n.gambar}">`:''}
+        <div style="margin-top:8px;"><b>Penemuan & Lokasi:</b> ${n.penemuan||'-'}</div>
+        <div><b>Cadangan Tindakan:</b> ${n.tindakan||'-'}</div>
+      </div>`).join('') : `<div class="empty">Tiada NC direkodkan.</div>`}
+  ` : `
+    <div class="section-title">2. Laporan Ketidakpatuhan (Non-Conformity — NC) <div class="rule"></div></div>
+    ${!b2.nc.length ? `<div class="empty" style="margin-bottom:12px;">Tiada NC direkodkan setakat ini. Klik butang di bawah jika ada penemuan ketidakpatuhan.</div>` : ''}
+    ${b2.nc.map((item,idx)=>`
+      <div class="nc-card">
+        <div class="nc-card-head">
+          <div class="nc-num">NC — Bil ${idx+1}</div>
+          <button class="btn sm danger" onclick="b2RemoveNC(${idx})">Buang</button>
+        </div>
+        <div class="field">
+          <label class="field-label">Seksyen (rujuk Borang 1)</label>
+          <select onchange="b2.nc[${idx}].seksyen=this.value">${sectionOptions(item.seksyen)}</select>
+        </div>
+        <div class="field">
+          <label class="field-label">Gambar</label>
+          <label class="photo-drop">
+            📷 Klik untuk muat naik gambar penemuan
+            <input type="file" accept="image/*" style="display:none" onchange="b2NCPhoto(${idx},this)">
+          </label>
+          ${item.gambarUploading ? `<div class="stat-note">⏳ Memuat naik gambar...</div>` : ''}
+          ${item.gambar?`<img class="photo-thumb" src="${item.gambar}">`:''}
+        </div>
+        <div class="field">
+          <label class="field-label">Perincian Penemuan & Lokasi</label>
+          <textarea oninput="b2.nc[${idx}].penemuan=this.value" placeholder="Nyatakan penemuan dan lokasi tepat...">${item.penemuan}</textarea>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Cadangan Tindakan Pembetulan</label>
+          <textarea oninput="b2.nc[${idx}].tindakan=this.value" placeholder="Cadangan tindakan pembetulan...">${item.tindakan}</textarea>
+        </div>
+      </div>`).join('')}
+    <button class="btn primary" onclick="b2AddNC()">+ Tambah NC</button>`;
+
+  const ofiBlock = readOnly ? `
+    <div class="section-title">3. Cadangan Penambahbaikan (OFI) <div class="rule"></div></div>
+    ${audit.ofi.length ? audit.ofi.map((o,i)=>`
+      <div class="nc-card">
+        <div class="nc-num" style="margin-bottom:8px;">OFI — Bil ${i+1} · Seksyen ${o.seksyen}</div>
+        ${o.gambar?`<img class="photo-thumb" src="${o.gambar}">`:''}
+        <div style="margin-top:8px;">${o.cadangan||'-'}</div>
+      </div>`).join('') : `<div class="empty">Tiada OFI direkodkan.</div>`}
+  ` : `
+    <div class="section-title">3. Cadangan Penambahbaikan (Opportunity For Improvement — OFI) <div class="rule"></div></div>
+    ${!b2.ofi.length ? `<div class="empty" style="margin-bottom:12px;">Tiada OFI direkodkan setakat ini. Klik butang di bawah jika ada cadangan penambahbaikan.</div>` : ''}
+    ${b2.ofi.map((item,idx)=>`
+      <div class="nc-card">
+        <div class="nc-card-head">
+          <div class="nc-num">OFI — Bil ${idx+1}</div>
+          <button class="btn sm danger" onclick="b2RemoveOFI(${idx})">Buang</button>
+        </div>
+        <div class="field">
+          <label class="field-label">Seksyen (rujuk Borang 1)</label>
+          <select onchange="b2.ofi[${idx}].seksyen=this.value">${sectionOptions(item.seksyen)}</select>
+        </div>
+        <div class="field">
+          <label class="field-label">Gambar</label>
+          <label class="photo-drop">
+            📷 Klik untuk muat naik gambar
+            <input type="file" accept="image/*" style="display:none" onchange="b2OFIPhoto(${idx},this)">
+          </label>
+          ${item.gambarUploading ? `<div class="stat-note">⏳ Memuat naik gambar...</div>` : ''}
+          ${item.gambar?`<img class="photo-thumb" src="${item.gambar}">`:''}
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Cadangan Penambahbaikan (Amalan Terbaik)</label>
+          <textarea oninput="b2.ofi[${idx}].cadangan=this.value" placeholder="Cadangan penambahbaikan...">${item.cadangan}</textarea>
+        </div>
+      </div>`).join('')}
+    <button class="btn primary" onclick="b2AddOFI()">+ Tambah OFI</button>`;
+
+  const confirmBlock = `
+    <div class="section-title">4. Pengesahan & Penutupan Audit <div class="rule"></div></div>
+    <div class="card grid cols-2">
+      <div>
+        <div class="stat-label">Disediakan oleh (Auditor)</div>
+        <div style="font-weight:600;">${audit.auditor}</div>
+        <div class="stat-note">Tandatangan & tarikh direkod semasa sesi audit fizikal</div>
+      </div>
+      <div>
+        <div class="stat-label">Diterima & Diakui oleh (PIC Makmal)</div>
+        <div style="font-weight:600;">${audit.pic}</div>
+      </div>
+    </div>`;
+
+  document.getElementById('main').innerHTML = `
+    <div class="topline">
+      <div>
+        <h1 class="h1">Borang 2 · Laporan NC / OFI</h1>
+        <div class="h1-sub">${audit.namaMakmal} — ${audit.kampus} ${isPending?'<span class="badge amber" style="margin-left:6px;">⏳ Belum Selesai</span>':''}</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" onclick="${isPending? "toast('Audit ini kekal sebagai \\'Menunggu\\' sehingga anda sahkan Borang 2.'); nav('dashboard');" : "nav('dashboard')"}">${isPending?'Simpan & Sambung Kemudian':'Langkau ke Dashboard'}</button>
+        ${readOnly ? '' : `<button class="btn primary" onclick="b2Submit()">${isPending?'✓ Terima & Selesaikan Audit':'✓ Simpan Laporan'}</button>`}
+      </div>
+    </div>
+    ${generalBlock}
+    ${ncBlock}
+    ${ofiBlock}
+    ${confirmBlock}
+    ${readOnly ? '' : `<div style="margin-top:20px;"><button class="btn primary" onclick="b2Submit()">${isPending?'✓ Terima & Selesaikan Audit':'✓ Simpan Laporan NC/OFI'}</button></div>`}
+  `;
+}
+function b2AddNC(){ b2.nc.push({seksyen:'A1',gambar:null,penemuan:'',tindakan:''}); renderBorang2(); }
+function b2RemoveNC(idx){ b2.nc.splice(idx,1); renderBorang2(); }
+function b2AddOFI(){ b2.ofi.push({seksyen:'A1',gambar:null,cadangan:''}); renderBorang2(); }
+function b2RemoveOFI(idx){ b2.ofi.splice(idx,1); renderBorang2(); }
+async function b2NCPhoto(idx, input){
+  const f = input.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = async e => {
+    b2.nc[idx].gambar = e.target.result; // paparan segera (base64 sementara) sambil muat naik
+    b2.nc[idx].gambarUploading = true;
+    renderBorang2();
+    const res = await apiCall('uploadImage', { dataUrl: e.target.result, filename: f.name });
+    b2.nc[idx].gambarUploading = false;
+    if(res.ok){
+      b2.nc[idx].gambar = res.url; // gantikan dengan pautan kekal (R2)
+      toast('Gambar dimuat naik.');
+    } else {
+      toast('⚠ Gagal muat naik gambar. Cuba lagi.');
+      b2.nc[idx].gambar = null;
+    }
+    renderBorang2();
+  };
+  r.readAsDataURL(f);
+}
+async function b2OFIPhoto(idx, input){
+  const f = input.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = async e => {
+    b2.ofi[idx].gambar = e.target.result;
+    b2.ofi[idx].gambarUploading = true;
+    renderBorang2();
+    const res = await apiCall('uploadImage', { dataUrl: e.target.result, filename: f.name });
+    b2.ofi[idx].gambarUploading = false;
+    if(res.ok){
+      b2.ofi[idx].gambar = res.url;
+      toast('Gambar dimuat naik.');
+    } else {
+      toast('⚠ Gagal muat naik gambar. Cuba lagi.');
+      b2.ofi[idx].gambar = null;
+    }
+    renderBorang2();
+  };
+  r.readAsDataURL(f);
+}
+async function b2Submit(){
+  const audit = STATE.audits.find(a=>String(a.id)===String(b2.auditId));
+  if(!audit){ toast('Pilih makmal dahulu.'); return; }
+  if(!isAdmin() && audit.emailAuditor !== currentUser.email){ toast('Anda tidak dibenarkan mengubah laporan makmal ini.'); return; }
+  const sess = STATE.sessions.find(x=>x.id===audit.sesiId);
+  if(!isAdmin() && sess && sess.status==='Selesai'){ toast('Sesi audit ini telah ditutup — laporan tidak boleh diubah.'); return; }
+  const nc = b2.nc.filter(n=>n.penemuan || n.tindakan || n.gambar);
+  const ofi = b2.ofi.filter(o=>o.cadangan || o.gambar);
+  const wasPending = audit.statusRekod === 'MenungguBorang2';
+  const newStatus = wasPending ? 'Selesai' : audit.statusRekod;
+  const res = await apiCall('saveAudit', { audit: {...audit, nc, ofi, statusRekod:newStatus} });
+  if(!res.ok) return;
+  audit.nc = nc;
+  audit.ofi = ofi;
+  audit.statusRekod = newStatus;
+  toast(wasPending ? `Audit "${audit.namaMakmal}" disahkan & ditandakan SELESAI.` : `Laporan NC/OFI untuk "${audit.namaMakmal}" disimpan.`);
+  b2 = freshB2();
+  nav('dashboard');
+}
+
+/* ============ JANA DOKUMEN ============ */
+
+/* ============ BANTUAN GAMBAR (untuk janaan Excel/Word) ============ */
+function getImageNaturalSize(dataUrl){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = () => resolve({width: img.naturalWidth || 300, height: img.naturalHeight || 200});
+    img.onerror = () => resolve({width: 300, height: 200}); // anggaran selamat jika gagal baca
+    img.src = dataUrl;
+  });
+}
+function fitWithinBox(natW, natH, maxW, maxH){
+  // Kekalkan nisbah aspek, hadkan supaya tak melebihi maxW x maxH (piksel)
+  let w = natW, h = natH;
+  if(w > maxW){ h = h * (maxW / w); w = maxW; }
+  if(h > maxH){ w = w * (maxH / h); h = maxH; }
+  return {width: Math.round(w), height: Math.round(h)};
+}
+const MAX_IMG_W_PX = 384; // 4 inci @ 96dpi
+const MAX_IMG_H_PX = 480; // 5 inci @ 96dpi
+
+async function fetchImageAsBase64(url){
+  // Worker backend kita sendiri set header CORS betul pada /image/ - jadi fetch silang-domain ni boleh dipercayai
+  try{
+    const res = await fetch(url);
+    if(!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve)=>{
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  }catch(e){ return null; }
+}
+function imgMimeAndBase64(dataUrl){
+  if(!dataUrl || !dataUrl.startsWith('data:') || dataUrl.indexOf(',')===-1) return null;
+  const meta = dataUrl.slice(5, dataUrl.indexOf(';')); // "image/png"
+  const base64 = dataUrl.slice(dataUrl.indexOf(',')+1);
+  return {mime: meta, base64};
+}
+function imgExtForExcel(dataUrl){
+  const info = imgMimeAndBase64(dataUrl);
+  if(!info) return 'png';
+  if(info.mime.includes('jpeg') || info.mime.includes('jpg')) return 'jpeg';
+  if(info.mime.includes('gif')) return 'gif';
+  return 'png';
+}
+function buildMhtmlDocument(htmlBody, images){
+  // images: [{cid, dataUrl}] - membina fail MHTML (multipart/related) supaya Word memaparkan gambar terbenam sebenar
+  const boundary = 'mhtml-osh-' + Date.now();
+  let out = `MIME-Version: 1.0\r\nContent-Type: multipart/related; boundary="${boundary}"\r\n\r\n`;
+  out += `--${boundary}\r\nContent-Type: text/html; charset="utf-8"\r\nContent-Location: report.html\r\n\r\n`;
+  out += htmlBody + '\r\n\r\n';
+  images.forEach(img=>{
+    const info = imgMimeAndBase64(img.dataUrl);
+    if(!info) return;
+    out += `--${boundary}\r\nContent-Type: ${info.mime}\r\nContent-Transfer-Encoding: base64\r\nContent-ID: <${img.cid}>\r\nContent-Location: ${img.cid}\r\n\r\n`;
+    out += (info.base64.match(/.{1,76}/g)||[info.base64]).join('\r\n') + '\r\n\r\n';
+  });
+  out += `--${boundary}--`;
+  return out;
+}
+
+async function generateDocument(id, format){
+  format = format || 'word';
+  const a = STATE.audits.find(x=>String(x.id)===String(id));
+  if(!a) return;
+  const s = computeScore(a.items);
+  const crit = STATE.admin.criticalItems.filter(c=>a.items[c].skor==='0');
+
+  if(format==='excel'){
+    toast('Menjana fail Excel... sila tunggu sebentar.');
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Sistem Audit OSH FTKE';
+
+    const wsR = wb.addWorksheet('Ringkasan');
+    wsR.columns = [{width:26},{width:44}];
+    [
+      ['LAPORAN AUDIT DALAMAN OSH — MAKMAL FTKE',''],[],
+      ['Kampus', a.kampus], ['Nama Makmal', a.namaMakmal], ['Lokasi', a.lokasi],
+      ['Tarikh & Masa Audit', fmtDate(a.tarikh)], ['Auditor', a.auditor], ['PIC Makmal', a.pic], [],
+      ['Jumlah Skor', `${s.sum} / ${s.max}`], ['Peratus Pematuhan (%)', Number(s.pct.toFixed(1))], ['Status Makmal', s.status],
+      ['Item Kritikal Gagal', crit.length ? crit.join(', ') : 'Tiada'],
+    ].forEach(r=>wsR.addRow(r));
+    wsR.getCell('A1').font = {bold:true, size:13};
+
+    const wsC = wb.addWorksheet('Borang 1 - Checklist');
+    wsC.columns = [{width:6},{width:26},{width:55},{width:8},{width:30}];
+    wsC.addRow(['Kod','Bahagian','Item Audit','Skor','Catatan']).font = {bold:true};
+    SECTIONS.forEach(sec=> sec.items.forEach(([code,text])=>{
+      const it = a.items[code];
+      wsC.addRow([code, `${sec.code}. ${sec.title}`, text, it.skor, it.catatan||'']);
+    }));
+
+    const wsNC = wb.addWorksheet('Borang 2 - NC');
+    wsNC.columns = [{width:5},{width:10},{width:34},{width:34},{width:34},{width:26}];
+    wsNC.addRow(['Bil','Seksyen','Item Seksyen','Perincian Penemuan & Lokasi','Cadangan Tindakan Pembetulan','Gambar']).font = {bold:true};
+    for(const [i,n] of a.nc.entries()){
+      const row = wsNC.addRow([i+1, n.seksyen, itemText(n.seksyen), n.penemuan||'', n.tindakan||'', n.gambar?'':'(tiada gambar)']);
+      const rowNum = row.number;
+      if(n.gambar){
+        const base64Data = n.gambar.startsWith('data:') ? n.gambar : await fetchImageAsBase64(n.gambar);
+        if(base64Data){
+          const natSize = await getImageNaturalSize(base64Data);
+          const fitted = fitWithinBox(natSize.width, natSize.height, MAX_IMG_W_PX, MAX_IMG_H_PX);
+          wsNC.getRow(rowNum).height = Math.max(90, fitted.height * 0.75); // px -> points (anggaran)
+          const imgId = wb.addImage({base64: base64Data, extension: imgExtForExcel(base64Data)});
+          wsNC.addImage(imgId, { tl:{col:5, row:rowNum-1}, ext:{width:fitted.width, height:fitted.height} });
+        }
+      }
+    }
+
+    const wsOFI = wb.addWorksheet('Borang 2 - OFI');
+    wsOFI.columns = [{width:5},{width:10},{width:40},{width:44},{width:26}];
+    wsOFI.addRow(['Bil','Seksyen','Item Seksyen','Cadangan Penambahbaikan','Gambar']).font = {bold:true};
+    for(const [i,o] of a.ofi.entries()){
+      const row = wsOFI.addRow([i+1, o.seksyen, itemText(o.seksyen), o.cadangan||'', o.gambar?'':'(tiada gambar)']);
+      const rowNum = row.number;
+      if(o.gambar){
+        const base64Data = o.gambar.startsWith('data:') ? o.gambar : await fetchImageAsBase64(o.gambar);
+        if(base64Data){
+          const natSize = await getImageNaturalSize(base64Data);
+          const fitted = fitWithinBox(natSize.width, natSize.height, MAX_IMG_W_PX, MAX_IMG_H_PX);
+          wsOFI.getRow(rowNum).height = Math.max(90, fitted.height * 0.75);
+          const imgId = wb.addImage({base64: base64Data, extension: imgExtForExcel(base64Data)});
+          wsOFI.addImage(imgId, { tl:{col:4, row:rowNum-1}, ext:{width:fitted.width, height:fitted.height} });
+        }
+      }
+    }
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Laporan_Audit_${a.namaMakmal.replace(/\s+/g,'_')}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast('Fail Excel dijana dengan gambar terbenam (4 helaian).');
+    return;
+  }
+
+  const sectionsHtml = SECTIONS.map(sec=>{
+    const rows = sec.items.map(([code,text])=>{
+      const it = a.items[code];
+      return `<tr><td class="c">${code}</td><td>${text}</td><td class="c">${it.skor}</td><td>${it.catatan||''}</td></tr>`;
+    }).join('');
+    return `<h3>${sec.code}. ${sec.title}</h3>
+      <table><thead><tr><th>Kod</th><th>Item Audit</th><th>Skor</th><th>Catatan</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }).join('');
+  const ncHtml = a.nc.length ? a.nc.map((n,i)=>`
+    <div class="ncblock">
+      <b>NC ${i+1} — Seksyen ${n.seksyen} (${itemText(n.seksyen)})</b>
+      ${n.gambar?`<div><img src="${n.gambar}" style="max-width:4in;max-height:5in;width:auto;height:auto;border:1px solid #ccc;margin:6px 0;"></div>`:''}
+      <div><i>Penemuan & Lokasi:</i> ${n.penemuan||'-'}</div>
+      <div><i>Cadangan Tindakan Pembetulan:</i> ${n.tindakan||'-'}</div>
+    </div>`).join('') : '<p>Tiada NC direkodkan.</p>';
+  const ofiHtml = a.ofi.length ? a.ofi.map((o,i)=>`
+    <div class="ncblock">
+      <b>OFI ${i+1} — Seksyen ${o.seksyen} (${itemText(o.seksyen)})</b>
+      ${o.gambar?`<div><img src="${o.gambar}" style="max-width:4in;max-height:5in;width:auto;height:auto;border:1px solid #ccc;margin:6px 0;"></div>`:''}
+      <div>${o.cadangan||'-'}</div>
+    </div>`).join('') : '<p>Tiada OFI direkodkan.</p>';
+
+  const doc = `<!DOCTYPE html><html lang="ms"><head><meta charset="UTF-8"><title>Laporan Audit — ${a.namaMakmal}</title>
+  <style>
+    body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;max-width:820px;margin:30px auto;padding:0 20px;line-height:1.5;}
+    h1{font-size:19px;text-align:center;margin-bottom:2px;}
+    h2{font-size:15px;border-bottom:2px solid #10243E;padding-bottom:4px;margin-top:28px;}
+    h3{font-size:13px;color:#2C5C86;margin:16px 0 6px;}
+    table{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:10px;}
+    th,td{border:1px solid #ccc;padding:5px 7px;text-align:left;}
+    td.c,th.c{text-align:center;width:50px;}
+    .meta{font-size:12.5px;margin:14px 0;}
+    .meta div{margin-bottom:3px;}
+    .status{display:inline-block;padding:3px 10px;border-radius:20px;font-weight:bold;font-size:12px;}
+    .ncblock{border:1px solid #ddd;border-radius:6px;padding:10px 12px;margin-bottom:10px;font-size:12.5px;}
+    .sig{margin-top:40px;display:flex;justify-content:space-between;font-size:12.5px;}
+    @media print{ body{margin:0;} }
+  </style></head><body>
+  <h1>LAPORAN AUDIT DALAMAN OSH — MAKMAL FTKE</h1>
+  <p style="text-align:center;color:#555;font-size:12px;">Borang 1 (Checklist) &amp; Borang 2 (Laporan NC/OFI) — Dijana oleh Sistem Audit OSH FTKE</p>
+  <div class="meta">
+    <div><b>Kampus:</b> ${a.kampus} &nbsp; | &nbsp; <b>Makmal:</b> ${a.namaMakmal} &nbsp; | &nbsp; <b>Lokasi:</b> ${a.lokasi}</div>
+    <div><b>Tarikh & Masa Audit:</b> ${fmtDate(a.tarikh)} &nbsp; | &nbsp; <b>Auditor:</b> ${a.auditor} &nbsp; | &nbsp; <b>PIC Makmal:</b> ${a.pic}</div>
+    <div><b>Skor:</b> ${s.sum}/${s.max} (${s.pct.toFixed(1)}%) &nbsp; | &nbsp; <b>Status:</b> <span class="status" style="background:${s.cls==='green'?'#E9F2EB':s.cls==='amber'?'#FBF0E1':'#FBEAE7'};color:${s.cls==='green'?'#3F7A55':s.cls==='amber'?'#C97A2B':'#B23A2E'};">${s.status}</span></div>
+    ${crit.length? `<div style="color:#B23A2E;"><b>⚠ KKP Kritikal:</b> ${crit.map(c=>c+' — '+itemText(c)).join('; ')}</div>` : ''}
+  </div>
+  <h2>BORANG 1 — CHECKLIST AUDIT</h2>
+  ${sectionsHtml}
+  <h2>BORANG 2 — BAHAGIAN 2: LAPORAN NC</h2>
+  ${ncHtml}
+  <h2>BORANG 2 — BAHAGIAN 3: CADANGAN OFI</h2>
+  ${ofiHtml}
+  <h2>PENGESAHAN</h2>
+  <div class="sig">
+    <div>Disediakan oleh (Auditor):<br><br>_____________________<br>${a.auditor}</div>
+    <div>Diterima & Diakui oleh (PIC Makmal):<br><br>_____________________<br>${a.pic}</div>
+  </div>
+  </body></html>`;
+
+  if(format==='word'){
+    // Word (.doc melalui MHTML) tidak memaparkan gambar base64 dalam <img src="data:..."> dengan boleh dipercayai.
+    // Jadi bina versi HTML berasingan yang rujuk gambar melalui cid: (rujukan MIME terbenam) - cara betul Word terima gambar terbenam.
+    // Pra-fetch semua gambar (URL R2) sebagai base64 dahulu, sebab registerImg() dipanggil segerak dalam .map() di bawah.
+    const imgCache = {};
+    for(const n of a.nc){ if(n.gambar && !n.gambar.startsWith('data:')) imgCache[n.gambar] = await fetchImageAsBase64(n.gambar); }
+    for(const o of a.ofi){ if(o.gambar && !o.gambar.startsWith('data:')) imgCache[o.gambar] = await fetchImageAsBase64(o.gambar); }
+    const wordImages = [];
+    let cidCounter = 0;
+    function registerImg(gambar){
+      const dataUrl = gambar.startsWith('data:') ? gambar : imgCache[gambar];
+      if(!dataUrl) return ''; // gagal fetch - elak cid rosak
+      const cid = 'img'+(cidCounter++)+'@osh.local';
+      wordImages.push({cid, dataUrl});
+      return 'cid:'+cid;
+    }
+    const ncHtmlWord = a.nc.length ? a.nc.map((n,i)=>`
+      <div class="ncblock">
+        <b>NC ${i+1} — Seksyen ${n.seksyen} (${itemText(n.seksyen)})</b>
+        ${n.gambar?`<div><img src="${registerImg(n.gambar)}" style="max-width:4in;max-height:5in;width:auto;height:auto;border:1px solid #ccc;margin:6px 0;"></div>`:''}
+        <div><i>Penemuan & Lokasi:</i> ${n.penemuan||'-'}</div>
+        <div><i>Cadangan Tindakan Pembetulan:</i> ${n.tindakan||'-'}</div>
+      </div>`).join('') : '<p>Tiada NC direkodkan.</p>';
+    const ofiHtmlWord = a.ofi.length ? a.ofi.map((o,i)=>`
+      <div class="ncblock">
+        <b>OFI ${i+1} — Seksyen ${o.seksyen} (${itemText(o.seksyen)})</b>
+        ${o.gambar?`<div><img src="${registerImg(o.gambar)}" style="max-width:4in;max-height:5in;width:auto;height:auto;border:1px solid #ccc;margin:6px 0;"></div>`:''}
+        <div>${o.cadangan||'-'}</div>
+      </div>`).join('') : '<p>Tiada OFI direkodkan.</p>';
+
+    const docWord = `<!DOCTYPE html><html lang="ms"><head><meta charset="UTF-8"><title>Laporan Audit — ${a.namaMakmal}</title>
+    <style>
+      body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;max-width:820px;margin:30px auto;padding:0 20px;line-height:1.5;}
+      h1{font-size:19px;text-align:center;margin-bottom:2px;}
+      h2{font-size:15px;border-bottom:2px solid #10243E;padding-bottom:4px;margin-top:28px;}
+      h3{font-size:13px;color:#2C5C86;margin:16px 0 6px;}
+      table{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:10px;}
+      th,td{border:1px solid #ccc;padding:5px 7px;text-align:left;}
+      td.c,th.c{text-align:center;width:50px;}
+      .meta{font-size:12.5px;margin:14px 0;}
+      .meta div{margin-bottom:3px;}
+      .status{display:inline-block;padding:3px 10px;border-radius:20px;font-weight:bold;font-size:12px;}
+      .ncblock{border:1px solid #ddd;border-radius:6px;padding:10px 12px;margin-bottom:10px;font-size:12.5px;}
+      .sig{margin-top:40px;display:flex;justify-content:space-between;font-size:12.5px;}
+    </style></head><body>
+    <h1>LAPORAN AUDIT DALAMAN OSH — MAKMAL FTKE</h1>
+    <p style="text-align:center;color:#555;font-size:12px;">Borang 1 (Checklist) &amp; Borang 2 (Laporan NC/OFI) — Dijana oleh Sistem Audit OSH FTKE</p>
+    <div class="meta">
+      <div><b>Kampus:</b> ${a.kampus} &nbsp; | &nbsp; <b>Makmal:</b> ${a.namaMakmal} &nbsp; | &nbsp; <b>Lokasi:</b> ${a.lokasi}</div>
+      <div><b>Tarikh & Masa Audit:</b> ${fmtDate(a.tarikh)} &nbsp; | &nbsp; <b>Auditor:</b> ${a.auditor} &nbsp; | &nbsp; <b>PIC Makmal:</b> ${a.pic}</div>
+      <div><b>Skor:</b> ${s.sum}/${s.max} (${s.pct.toFixed(1)}%) &nbsp; | &nbsp; <b>Status:</b> ${s.status}</div>
+      ${crit.length? `<div style="color:#B23A2E;"><b>⚠ KKP Kritikal:</b> ${crit.map(c=>c+' — '+itemText(c)).join('; ')}</div>` : ''}
+    </div>
+    <h2>BORANG 1 — CHECKLIST AUDIT</h2>
+    ${sectionsHtml}
+    <h2>BORANG 2 — BAHAGIAN 2: LAPORAN NC</h2>
+    ${ncHtmlWord}
+    <h2>BORANG 2 — BAHAGIAN 3: CADANGAN OFI</h2>
+    ${ofiHtmlWord}
+    <h2>PENGESAHAN</h2>
+    <div class="sig">
+      <div>Disediakan oleh (Auditor):<br><br>_____________________<br>${a.auditor}</div>
+      <div>Diterima & Diakui oleh (PIC Makmal):<br><br>_____________________<br>${a.pic}</div>
+    </div>
+    </body></html>`;
+
+    const mhtml = buildMhtmlDocument(docWord, wordImages);
+    const blob = new Blob([mhtml], {type:'application/msword'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Laporan_Audit_${a.namaMakmal.replace(/\s+/g,'_')}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast(wordImages.length ? `Dokumen Word dijana dengan ${wordImages.length} gambar terbenam.` : 'Dokumen Word dijana & dimuat turun.');
+    return;
+  }
+
+  const blob = new Blob([doc], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `Laporan_Audit_${a.namaMakmal.replace(/\s+/g,'_')}.html`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  toast('Dokumen dijana & dimuat turun. Buka fail untuk cetak/simpan sebagai PDF.');
+}
+
+/* init */
+try{
+  renderLogin();
+}catch(err){
+  showFatalError(err, 'renderLogin (permulaan)');
+}
+</script>
+</body>
+</html>
