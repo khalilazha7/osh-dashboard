@@ -750,6 +750,42 @@ function adminDeleteUser(id){
     renderAdminUsers();
   }, {confirmLabel:'🗑 Ya, Padam Pengguna'});
 }
+function adminOpenResetPassword(id, nama){
+  const host = document.getElementById('auditDetailModalHost') || document.getElementById('app');
+  host.innerHTML = `
+    <div style="position:fixed;inset:0;background:rgba(16,36,62,.5);z-index:950;display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="background:var(--paper-card);border-radius:12px;max-width:440px;width:100%;padding:24px 26px;border:1px solid var(--line-soft);">
+        <div style="font-family:'Space Grotesk';font-weight:700;font-size:16px;color:var(--ink);margin-bottom:6px;">🔑 Reset Kata Laluan</div>
+        <div style="font-size:13px;color:var(--text-mute);margin-bottom:16px;">Tetapkan kata laluan baharu untuk <b>${nama}</b>. Mereka akan log masuk guna kata laluan ni.</div>
+        <div class="field">
+          <label class="field-label">Kata Laluan Baharu</label>
+          <input type="password" id="resetPwNew1" placeholder="Sekurang-kurangnya 6 aksara">
+        </div>
+        <div class="field" style="margin-bottom:4px;">
+          <label class="field-label">Sahkan Kata Laluan Baharu</label>
+          <input type="password" id="resetPwNew2" placeholder="Taip semula" onkeydown="if(event.key==='Enter') adminSubmitResetPassword(${id})">
+        </div>
+        <div id="resetPwError" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+          <button class="btn" onclick="document.getElementById('auditDetailModalHost').innerHTML=''">Batal</button>
+          <button class="btn primary" onclick="adminSubmitResetPassword(${id})">Tetapkan Kata Laluan</button>
+        </div>
+      </div>
+    </div>`;
+  setTimeout(()=>{ const el=document.getElementById('resetPwNew1'); if(el) el.focus(); }, 50);
+}
+async function adminSubmitResetPassword(id){
+  const errBox = document.getElementById('resetPwError');
+  errBox.style.display = 'none';
+  const p1 = document.getElementById('resetPwNew1').value;
+  const p2 = document.getElementById('resetPwNew2').value;
+  if(!p1 || p1.length<6){ errBox.textContent='Kata laluan mesti sekurang-kurangnya 6 aksara.'; errBox.style.display='block'; return; }
+  if(p1!==p2){ errBox.textContent='Kata laluan dan sahkan kata laluan tidak sepadan.'; errBox.style.display='block'; return; }
+  const res = await apiCall('adminResetPassword', { id, newPassword: p1 });
+  if(!res.ok){ errBox.textContent = res.error || 'Gagal tetapkan semula kata laluan.'; errBox.style.display='block'; return; }
+  document.getElementById('auditDetailModalHost').innerHTML = '';
+  toast('Kata laluan berjaya ditetapkan semula.');
+}
 async function adminApproveRegistration(id){
   const r = STATE.pendingRegistrations.find(x=>x.id===id);
   if(!r) return;
@@ -979,6 +1015,12 @@ function renderShell(){
         <span class="nav-dot"></span> Pengurusan Pengguna ${isAdmin()?'':'🔒'}
         <span id="pendingRegBadge">${isAdmin() && STATE.pendingRegistrations.length ? `<span class="badge red" style="margin-left:6px;">${STATE.pendingRegistrations.length}</span>` : ''}</span>
       </div>
+      <div class="nav-item ${isAdmin()?'':'nav-locked'}" data-view="activityLog" onclick="${isAdmin()?"nav('activityLog')":"toast('Hanya Admin boleh akses halaman ini.')"}">
+        <span class="nav-dot"></span> Log Aktiviti ${isAdmin()?'':'🔒'}
+      </div>
+      <div class="nav-item" data-view="myStats" onclick="nav('myStats')">
+        <span class="nav-dot"></span> Audit Saya
+      </div>
       <div class="sidebar-foot">
         ${colorSchemePicker()}
         <div style="display:flex;gap:6px;margin-bottom:10px;">
@@ -1010,7 +1052,7 @@ function updatePendingBadge(){
 }
 function nav(view){
   try{
-    if((view==='admin' || view==='adminUsers') && !isAdmin()){ toast('Hanya Admin boleh akses halaman ini.'); view='dashboard'; }
+    if((view==='admin' || view==='adminUsers' || view==='activityLog') && !isAdmin()){ toast('Hanya Admin boleh akses halaman ini.'); view='dashboard'; }
     if(view==='borang1' && !b1 && !getActiveSession()){
       toast('Tiada sesi audit aktif. Audit baharu tidak boleh dimulakan buat masa ini.');
       view = 'dashboard';
@@ -1020,6 +1062,8 @@ function nav(view){
     if(view==='dashboard') renderDashboard();
     if(view==='admin') renderAdmin();
     if(view==='adminUsers') renderAdminUsers();
+    if(view==='activityLog') renderActivityLog();
+    if(view==='myStats') renderMyStats();
     if(view==='borang1') renderBorang1();
     if(view==='borang2') renderBorang2();
   }catch(err){
@@ -2064,6 +2108,15 @@ function renderAdmin(){
       </div>
     </div>
 
+    <div class="section-title">Sandaran Data <div class="rule"></div></div>
+    <div class="callout">💾 Muat turun SEMUA data sistem (pengguna, sesi, audit, NCR/OFI) sebagai satu fail — untuk perlindungan/rekod luar sistem. Kata laluan TIDAK disertakan (keselamatan).</div>
+    <div class="card">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn primary" onclick="downloadBackupJson()">💾 Muat Turun Sandaran (.json)</button>
+        <button class="btn" onclick="downloadBackupCsv()">📊 Muat Turun Audit (.csv)</button>
+      </div>
+    </div>
+
     <div class="section-title">Keselamatan Pemadaman Data <div class="rule"></div></div>
     <div class="callout">Kata laluan ini akan diminta setiap kali sesiapa (Admin/Auditor) cuba memadam sesi audit atau rekod pemarkahan, sebagai langkah pencegahan padam tidak sengaja.</div>
     <div class="card" style="max-width:360px;">
@@ -2236,6 +2289,36 @@ function generateActionPlan(){
   document.body.removeChild(link);
   toast(`Dokumen Word Pelan Tindakan (${scopeLabel}) dijana & dimuat turun.`);
 }
+function downloadBackupJson(){
+  const backup = {
+    dijana: new Date().toISOString(),
+    sistem: 'Sistem Audit OSH FTKE',
+    users: USERS.map(u=>({id:u.id, email:u.email, nama:u.nama, peranan:u.peranan, kampus:u.kampus, aktif:u.aktif})), // TIADA password_hash
+    sessions: STATE.sessions,
+    audits: STATE.audits,
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url; link.download = `Sandaran_OSH_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  toast('Fail sandaran JSON dimuat turun.');
+}
+function downloadBackupCsv(){
+  const headers = ['ID','Sesi','Kampus','Nama Makmal','Lokasi','Tarikh','Auditor','E-mel Auditor','PIC','Status','Skor %','Bil NCR','Bil OFI'];
+  const rows = [headers];
+  STATE.audits.forEach(a=>{
+    const s = computeScore(a.items);
+    rows.push([a.id, sessionName(a.sesiId), a.kampus, a.namaMakmal||'', a.lokasi||'', a.tarikh||'', a.auditor||'', a.emailAuditor||'', a.pic||'', a.statusRekod, a.statusRekod==='Draf'?'':s.pct.toFixed(1), (a.nc||[]).length, (a.ofi||[]).length]);
+  });
+  const csv = rows.map(r=> r.map(c=> `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url; link.download = `Sandaran_Audit_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  toast('Fail CSV audit dimuat turun.');
+}
 function generateComplianceAnalysis(){
   const format = document.getElementById('analysisFormat').value;
   const completed = STATE.audits.filter(a=>a.statusRekod==='Selesai');
@@ -2370,6 +2453,124 @@ function buildAnalysisHtml(itemRanked, sessionTrend, campusCompare, sectionStats
   </table>
   </body></html>`;
 }
+async function renderActivityLog(){
+  document.getElementById('main').innerHTML = `
+    <div class="topline">
+      <div>
+        <h1 class="h1">Log Aktiviti</h1>
+        <div class="h1-sub">Rekod tindakan pentadbiran — untuk akauntabiliti & audit dalaman sistem</div>
+      </div>
+    </div>
+    <div class="callout">Memuatkan log aktiviti...</div>`;
+  const res = await apiCall('getActivityLog', {});
+  if(!res.ok){ document.getElementById('main').innerHTML = `<div class="callout warn">Gagal muat log aktiviti: ${res.error||''}</div>`; return; }
+  const rows = res.log.map(l=>`
+    <tr>
+      <td class="mono" style="font-size:12px;white-space:nowrap;">${fmtDate(l.waktu)}</td>
+      <td class="mono" style="font-size:12px;">${l.actorEmail||'-'}</td>
+      <td><span class="badge grey">${l.tindakan}</span></td>
+      <td style="font-size:12.5px;">${l.butiran||'-'}</td>
+    </tr>`).join('');
+  document.getElementById('main').innerHTML = `
+    <div class="topline">
+      <div>
+        <h1 class="h1">Log Aktiviti</h1>
+        <div class="h1-sub">Rekod tindakan pentadbiran — untuk akauntabiliti & audit dalaman sistem (200 terkini)</div>
+      </div>
+      <button class="btn sm" onclick="nav('activityLog')">↻ Muat Semula</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      ${res.log.length ? `<table>
+        <thead><tr><th>Waktu</th><th>Oleh</th><th>Tindakan</th><th>Butiran</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>` : `<div class="empty">Tiada aktiviti direkodkan lagi.</div>`}
+    </div>`;
+}
+function renderMyStats(){
+  const mine = STATE.audits.filter(a=>a.emailAuditor===currentUser.email);
+  const completed = mine.filter(a=>a.statusRekod==='Selesai');
+  const draf = mine.filter(a=>a.statusRekod==='Draf');
+  const pending = mine.filter(a=>a.statusRekod==='MenungguBorang2');
+  const scores = completed.map(a=>computeScore(a.items));
+  const avgPct = scores.length ? (scores.reduce((s,x)=>s+x.pct,0)/scores.length) : 0;
+  const totalNC = mine.reduce((s,a)=>s+(a.nc?a.nc.length:0),0);
+  const totalOFI = mine.reduce((s,a)=>s+(a.ofi?a.ofi.length:0),0);
+  const bySession = {};
+  completed.forEach(a=>{
+    const nama = sessionName(a.sesiId);
+    if(!bySession[nama]) bySession[nama] = {count:0, sum:0};
+    bySession[nama].count++;
+    bySession[nama].sum += computeScore(a.items).pct;
+  });
+  const sessionRows = Object.entries(bySession).map(([nama,v])=>`
+    <tr><td>${nama}</td><td class="c">${v.count}</td><td class="c"><b>${(v.sum/v.count).toFixed(1)}%</b></td></tr>`).join('');
+
+  const recentRows = [...mine].sort((a,b)=> new Date(b.tarikh||0) - new Date(a.tarikh||0)).slice(0,10).map(a=>{
+    const s = computeScore(a.items);
+    const isDraft = a.statusRekod==='Draf', isPending = a.statusRekod==='MenungguBorang2';
+    return `<tr class="clickable" onclick="${isDraft?`b1LoadForEdit(${a.id})`:isPending?`b2GoTo(${a.id})`:`viewAuditDetail(${a.id})`}">
+      <td>${a.namaMakmal||'(belum dinamakan)'}<div style="font-size:11px;color:var(--text-mute)">${a.kampus} · ${sessionName(a.sesiId)}</div></td>
+      <td class="mono">${fmtDate(a.tarikh)}</td>
+      <td class="mono">${isDraft?'—':s.pct.toFixed(1)+'%'}</td>
+      <td>${isDraft?'<span class="badge amber">Draf</span>':isPending?'<span class="badge amber">Menunggu B2</span>':`<span class="badge ${s.cls}">${s.status}</span>`}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('main').innerHTML = `
+    <div class="topline">
+      <div>
+        <h1 class="h1">Audit Saya</h1>
+        <div class="h1-sub">Ringkasan peribadi — ${currentUser.nama}</div>
+      </div>
+    </div>
+
+    <div class="grid cols-4">
+      <div class="card">
+        <div class="stat-label">Jumlah Audit Selesai</div>
+        <div class="stat-value">${completed.length}</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Purata Pematuhan</div>
+        <div class="stat-value" style="color:${avgPct>=80?'var(--green)':avgPct>=50?'var(--amber)':'var(--red)'}">${avgPct.toFixed(1)}%</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Draf Belum Selesai</div>
+        <div class="stat-value" style="color:${draf.length>0?'var(--amber)':'var(--ink)'}">${draf.length}</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Menunggu Borang 2</div>
+        <div class="stat-value" style="color:${pending.length>0?'var(--amber)':'var(--ink)'}">${pending.length}</div>
+      </div>
+    </div>
+
+    <div class="grid cols-2" style="margin-top:16px;">
+      <div class="card">
+        <div class="stat-label">Jumlah NCR Dilaporkan</div>
+        <div class="stat-value" style="color:var(--red);font-size:22px;">${totalNC}</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Jumlah OFI Dicadangkan</div>
+        <div class="stat-value" style="color:var(--amber);font-size:22px;">${totalOFI}</div>
+      </div>
+    </div>
+
+    ${Object.keys(bySession).length ? `
+    <div class="section-title">Prestasi Ikut Sesi <div class="rule"></div></div>
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:16px;">
+      <table>
+        <thead><tr><th>Sesi</th><th class="c">Bil. Audit</th><th class="c">Purata Pematuhan</th></tr></thead>
+        <tbody>${sessionRows}</tbody>
+      </table>
+    </div>` : ''}
+
+    <div class="section-title">Audit Terkini Anda <div class="rule"></div></div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      ${mine.length ? `<table>
+        <thead><tr><th>Makmal</th><th>Tarikh</th><th>Skor</th><th>Status</th></tr></thead>
+        <tbody>${recentRows}</tbody>
+      </table>` : `<div class="empty">Anda belum mencipta sebarang audit lagi.</div>`}
+    </div>`;
+}
 function renderAdminUsers(){
   document.getElementById('main').innerHTML = `
     <div class="topline">
@@ -2429,6 +2630,7 @@ function renderAdminUsers(){
               <td>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
                   <button class="btn sm" onclick="adminToggleUserAktif(${u.id})">${u.aktif!==false?'Nyahaktif':'Aktifkan'}</button>
+                  <button class="btn sm" onclick="adminOpenResetPassword(${u.id}, '${u.nama.replace(/'/g,"\\'")}')" title="Tetapkan semula kata laluan pengguna ini">🔑 Reset Kata Laluan</button>
                   <button class="btn sm danger" onclick="adminDeleteUser(${u.id})">🗑 Padam</button>
                 </div>
               </td>
