@@ -143,9 +143,10 @@
     padding:9px 16px;border-radius:8px;border:1px solid var(--line);
     background:#fff;color:var(--text);cursor:pointer;
     display:inline-flex;align-items:center;gap:7px;
+    transform:translateZ(0);-webkit-transform:translateZ(0);
   }
   .btn:hover{border-color:#B9C6D0;}
-  .btn.primary{background:var(--btn-primary-bg, var(--solid));color:#fff;border-color:var(--btn-primary-bg, var(--solid));}
+  .btn.primary{background:var(--btn-primary-bg, var(--solid));color:#fff;border-color:var(--btn-primary-bg, var(--solid));transform:translateZ(0);-webkit-transform:translateZ(0);}
   .btn.primary:hover{background:var(--ink-soft);}
   .btn.ghost{background:transparent;border-color:transparent;color:var(--steel);padding:9px 8px;}
   .btn.sm{padding:6px 11px;font-size:12px;}
@@ -232,6 +233,7 @@
     display:flex;align-items:center;gap:7px;padding:7px 12px 7px 8px;
     border-radius:20px;background:#EFEDE6;color:var(--text-mute);font-size:12.5px;font-weight:600;
     cursor:pointer;border:1px solid transparent;
+    transform:translateZ(0);-webkit-transform:translateZ(0);
   }
   .rail-step .dot{width:20px;height:20px;border-radius:50%;background:#fff;color:var(--text-mute);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono';font-size:10.5px;}
   .rail-step.done{background:var(--green-bg);color:var(--green);}
@@ -1330,11 +1332,11 @@ function renderDashboard(){
       </div>
       <div class="card">
         <div class="stat-label">NCR · Kampus Teknologi</div>
-        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Teknologi' && (isAdmin()||a.emailAuditor===currentUser.email)).reduce((s,a)=>s+a.nc.length,0)}</div>
+        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Teknologi').reduce((s,a)=>s+a.nc.length,0)}</div>
       </div>
       <div class="card">
         <div class="stat-label">NCR · Kampus Induk</div>
-        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Induk' && (isAdmin()||a.emailAuditor===currentUser.email)).reduce((s,a)=>s+a.nc.length,0)}</div>
+        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Induk').reduce((s,a)=>s+a.nc.length,0)}</div>
       </div>
     </div>
 
@@ -1347,11 +1349,11 @@ function renderDashboard(){
       </div>
       <div class="card">
         <div class="stat-label">OFI · Kampus Teknologi</div>
-        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Teknologi' && (isAdmin()||a.emailAuditor===currentUser.email)).reduce((s,a)=>s+a.ofi.length,0)}</div>
+        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Teknologi').reduce((s,a)=>s+a.ofi.length,0)}</div>
       </div>
       <div class="card">
         <div class="stat-label">OFI · Kampus Induk</div>
-        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Induk' && (isAdmin()||a.emailAuditor===currentUser.email)).reduce((s,a)=>s+a.ofi.length,0)}</div>
+        <div class="stat-value" style="font-size:22px;">${STATE.audits.filter(a=>a.sesiId===focusSessionId && a.kampus==='Kampus Induk').reduce((s,a)=>s+a.ofi.length,0)}</div>
       </div>
     </div>
 
