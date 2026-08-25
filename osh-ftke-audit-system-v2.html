@@ -58,7 +58,7 @@
     --text-mute:#8FA3B8;
     --btn-primary-bg:#6FAEDD; /* Sidebar (--solid) KEKAL gelap - hanya butang dicerahkan supaya kontras jelas dalam mod gelap */
   }
-  body.dark .btn.primary{ color:#0B1622; } /* teks gelap pada butang terang supaya kontras jelas dalam mod gelap */
+  body.dark .btn.primary{ color:#0B1622; box-shadow:0 0 0 1px rgba(255,255,255,.25); } /* teks gelap + garis halus supaya sentiasa kelihatan jelas dalam mod gelap */
   body.dark .btn{ background:var(--paper-card); color:var(--text); border-color:var(--line); } /* elak latar putih tetap #fff - punca teks kabur dalam mod gelap */
   body.dark .btn:hover{ border-color:var(--steel); }
   body.dark .rail-step{ background:#16293B; } /* elak latar cair tetap #EFEDE6 - punca teks kabur dalam mod gelap */
@@ -1053,7 +1053,7 @@ function updatePendingBadge(){
   if(!el) return; // sidebar mungkin belum dilukis (cth semasa skrin log masuk)
   el.innerHTML = (isAdmin() && STATE.pendingRegistrations.length) ? `<span class="badge red" style="margin-left:6px;">${STATE.pendingRegistrations.length}</span>` : '';
 }
-function nav(view){
+async function nav(view){
   try{
     if((view==='admin' || view==='adminUsers' || view==='activityLog') && !isAdmin()){ toast('Hanya Admin boleh akses halaman ini.'); view='dashboard'; }
     if(view==='borang1' && !b1 && !getActiveSession()){
@@ -1062,6 +1062,11 @@ function nav(view){
     }
     currentView = view;
     document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active', el.dataset.view===view));
+    // Skrin ni papar data yang mungkin diubah oleh pengguna LAIN - muat semula terkini setiap kali dibuka
+    const REFRESH_ON_OPEN = ['dashboard','myStats','admin','adminUsers'];
+    if(REFRESH_ON_OPEN.includes(view)){
+      await loadAllDataFromBackend();
+    }
     if(view==='dashboard') renderDashboard();
     if(view==='admin') renderAdmin();
     if(view==='adminUsers') renderAdminUsers();
@@ -1142,7 +1147,7 @@ function dashboardFocusSessionId(){
   return sorted.length ? sorted[0].id : null;
 }
 function campusStats(kampus, sesiId){
-  const base = isAdmin() ? STATE.audits : STATE.audits.filter(a=>a.emailAuditor===currentUser.email);
+  const base = STATE.audits; // Dashboard = status keseluruhan FTKE (bukan terhad pemilik) - paparan peribadi ada di "Audit Saya"
   const list = base.filter(a=>a.kampus===kampus && a.sesiId===sesiId);
   const capacity = kampus==='Kampus Teknologi' ? STATE.admin.teknologi : STATE.admin.induk;
   const scored = list.map(a=>computeScore(a.items));
@@ -1159,7 +1164,7 @@ function renderDashboard(){
   const focusSessionId = dashboardSessionFilter !== null ? dashboardSessionFilter : defaultSessionId;
   const focusSession = STATE.sessions.find(s=>s.id===focusSessionId) || null;
 
-  const all = (isAdmin() ? STATE.audits : STATE.audits.filter(a=>a.emailAuditor===currentUser.email))
+  const all = STATE.audits // Dashboard = status keseluruhan FTKE (semua auditor) - paparan peribadi ada di "Audit Saya"
     .filter(a=>a.sesiId===focusSessionId)
     .filter(a=>dashboardCampusFilter==='Semua' || a.kampus===dashboardCampusFilter);
   const allScored = all.map(a=>computeScore(a.items));
@@ -1479,7 +1484,7 @@ function renderDashboard(){
       <button class="btn primary" onclick="generateDocument(document.getElementById('dashSelectMakmal').value, document.getElementById('dashFormat').value)">⤓ Jana Dokumen</button>
     </div>
 
-    <div class="section-title">Senarai Audit ${isAdmin()?'':'(Rekod Anda Sahaja)'} <div class="rule"></div></div>
+    <div class="section-title">Senarai Audit (Semua Auditor) <div class="rule"></div></div>
     <div class="card" style="padding:14px 16px;margin-bottom:12px;">
       <input type="text" id="auditSearchBox" oninput="filterAuditTable()" placeholder="🔍 Cari makmal, kampus, lokasi, auditor atau status...">
     </div>
@@ -1489,9 +1494,7 @@ function renderDashboard(){
         <tbody id="auditTableBody">${tableRows}</tbody>
       </table>
       <div class="empty" id="auditSearchEmpty" style="display:none;">Tiada makmal sepadan dengan carian.</div>` : `<div class="empty">
-        ${isAdmin()
-          ? 'Belum ada audit direkodkan.'
-          : `Anda (${currentUser.nama}) belum mencipta sebarang audit lagi.<br>Sistem hanya memaparkan rekod yang anda daftar sendiri — ini bukan ralat.<br>Klik "+ Audit Baharu (Borang 1)" di atas untuk mula.`}
+        Belum ada audit direkodkan untuk sesi/kampus ini. Klik "+ Audit Baharu (Borang 1)" di atas untuk mula.
       </div>`}
     </div>
   `;
@@ -3539,6 +3542,32 @@ async function generateDocument(id, format){
   document.body.removeChild(link);
   toast('Dokumen dijana & dimuat turun. Buka fail untuk cetak/simpan sebagai PDF.');
 }
+
+/* Kemas kini automatik latar belakang - bila pengguna sedang berada di Dashboard, muat semula
+   data setiap 60 saat supaya audit/laporan baharu daripada auditor lain terus kelihatan tanpa
+   perlu tekan apa-apa (elak keperluan refresh manual halaman penuh). */
+setInterval(async ()=>{
+  if(currentUser && currentView==='dashboard'){
+    // Elak ganggu Admin yang SEDANG taip carian - lengah refresh ni, cuba lagi pusingan seterusnya
+    const searchBoxEl = document.getElementById('auditSearchBox');
+    if(searchBoxEl && document.activeElement===searchBoxEl && searchBoxEl.value.trim()){
+      return;
+    }
+    const scrollPos = document.getElementById('main') ? document.getElementById('main').scrollTop : 0;
+    const searchVal = searchBoxEl ? searchBoxEl.value : '';
+    try{
+      await loadAllDataFromBackend();
+      if(currentView==='dashboard'){ // sahkan semula - pengguna mungkin dah tukar skrin semasa fetch
+        renderDashboard();
+        // pulihkan kedudukan scroll & teks carian supaya refresh tak "kejutkan" pengguna
+        const mainEl = document.getElementById('main');
+        if(mainEl) mainEl.scrollTop = scrollPos;
+        const newSearchBox = document.getElementById('auditSearchBox');
+        if(newSearchBox && searchVal){ newSearchBox.value = searchVal; filterAuditTable(); }
+      }
+    }catch(e){ /* senyapkan - jangan ganggu pengguna dengan ralat kemas kini latar belakang */ }
+  }
+}, 60000);
 
 /* init */
 try{
