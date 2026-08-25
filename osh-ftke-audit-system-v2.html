@@ -59,6 +59,10 @@
     --btn-primary-bg:#6FAEDD; /* Sidebar (--solid) KEKAL gelap - hanya butang dicerahkan supaya kontras jelas dalam mod gelap */
   }
   body.dark .btn.primary{ color:#0B1622; } /* teks gelap pada butang terang supaya kontras jelas dalam mod gelap */
+  body.dark .btn{ background:var(--paper-card); color:var(--text); border-color:var(--line); } /* elak latar putih tetap #fff - punca teks kabur dalam mod gelap */
+  body.dark .btn:hover{ border-color:var(--steel); }
+  body.dark .rail-step{ background:#16293B; } /* elak latar cair tetap #EFEDE6 - punca teks kabur dalam mod gelap */
+  body.dark .rail-step .dot{ background:#25384C; color:var(--text-mute); }
   body.dark.scheme-green{ --btn-primary-bg:#5FCB9A; }
   body.dark.scheme-purple{ --btn-primary-bg:#B08FDE; }
   body.dark.scheme-maroon{ --btn-primary-bg:#E08A9A; }
@@ -1007,6 +1011,8 @@ function renderShell(){
       <div class="nav-group-label">Audit</div>
       <div class="nav-item" data-view="borang1" onclick="nav('borang1')"><span class="nav-dot"></span> Borang 1 · Checklist</div>
       <div class="nav-item" data-view="borang2" onclick="nav('borang2')"><span class="nav-dot"></span> Borang 2 · Laporan NC/OFI</div>
+      <div class="nav-group-label">Laporan Audit</div>
+      <div class="nav-item" data-view="myStats" onclick="nav('myStats')"><span class="nav-dot"></span> Audit Saya</div>
       <div class="nav-group-label">Tetapan Admin</div>
       <div class="nav-item ${isAdmin()?'':'nav-locked'}" data-view="admin" onclick="${isAdmin()?"nav('admin')":"toast('Hanya Admin boleh akses halaman ini.')"}">
         <span class="nav-dot"></span> Pengurusan Audit ${isAdmin()?'':'🔒'}
@@ -1017,9 +1023,6 @@ function renderShell(){
       </div>
       <div class="nav-item ${isAdmin()?'':'nav-locked'}" data-view="activityLog" onclick="${isAdmin()?"nav('activityLog')":"toast('Hanya Admin boleh akses halaman ini.')"}">
         <span class="nav-dot"></span> Log Aktiviti ${isAdmin()?'':'🔒'}
-      </div>
-      <div class="nav-item" data-view="myStats" onclick="nav('myStats')">
-        <span class="nav-dot"></span> Audit Saya
       </div>
       <div class="sidebar-foot">
         ${colorSchemePicker()}
