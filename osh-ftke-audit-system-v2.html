@@ -408,56 +408,56 @@ async function loadAllDataFromBackend(){
 const SECTIONS = [
   {code:'A', title:'Pengurusan & Dokumentasi', items:[
     ['A1','Tanda nama PIC makmal dipamerkan'],
-    ['A2','SOP mesin/ alatan makmal yang berisiko tinggi disediakan'],
-    ['A3','Dokumen HIRARC terkini disemak, diluluskan dan releven dengan aktiviti makmal'],
-    ['A4','Rekod taklimat keselamatan pelajar/penyelidik ada disimpan'],
-    ['A5','Rekod penyelenggaraan dan kalibrasi ada disediakan'],
-    ['A6','Rekod kemalangan/Near Miss ada disediakan'],
-    ['A7','Nombor kecemasan adalah yang terkini'],
-    ['A8','Status Tindakan Susulan Audit Terdahulu (Tutup / Belum Tutup)'],
+    ['A2','Paparan Peraturan Am Makmal keselamatan dipamerkan di pintu masuk'],
+    ['A3','SOP mesin/alatan makmal yang berisiko tinggi disedia'],
+    ['A4','Dokumen HIRARC terkini disemak, diluluskan dan releven dengan aktiviti makmal'],
+    ['A5','Rekod taklimat keselamatan pelajar/penyelidik ada disimpan'],
+    ['A6','Rekod penyelenggaraan dan kalibrasi ada disediakan'],
+    ['A7','Rekod kemalangan/Near Miss ada disediakan'],
+    ['A8','Nombor kecemasan adalah yang terkini'],
+    ['A9','Rekod penggunaan di luar waktu pejabat'],
+    ['A10','Tindakan Pembetulan dari laporan audit OSH terdahulu telah diselesaikan sepenuhnya (Sekiranya ada)'],
   ]},
   {code:'B', title:'Keadaan Am Makmal', items:[
     ['B1','Lantai & Laluan Berjalan: Kebersihan terjaga, tiada tumpahan minyak/air, dan tiada bahaya tersimpul (trip hazard)'],
     ['B2','Pengurusan Kabel (Cable Management): Kabel makmal diikat/disusun kemas menggunakan cable trunking/casing'],
     ['B3','Penyimpanan Peralatan/Komponen: Rak penyimpanan stabil, barangan berat diletakkan di bahagian bawah'],
-    ['B4','Pencahayaan & Pengudaraan: Pencahayaan cukup terang, suhu bilik selesa (air-cond berfungsi)'],
-    ['B5','Housekeeping memuaskan dan susun atur makmal tidak terlalu padat menghalang laluan'],
+    ['B4','Pencahayaan & Pengudaraan: Pencahayaan cukup terang untuk kerja makmal, suhu bilik selesa'],
+    ['B5','Susun Atur Bilik: Makmal tidak terlalu padat dengan meja/kerusi tambahan yang boleh menghalang laluan kecemasan'],
   ]},
   {code:'C', title:'Keselamatan Elektrik & Elektronik', items:[
-    ['C1','Panel Elektrik Utama / Sub-Panel: Pintu panel dikunci, tiada wayar terdedah, dan berlabel'],
-    ['C2','Kabel & Soket: Tiada kabel terdedah/merekah dan tiada penyambungan berlebihan (Daisy-chaining)'],
-    ['C3','Stesen Pematerian (Soldering): Pemegang besi pemateri selamat, tiada risiko kebakaran'],
-    ['C4','Pendawaian Elektrik di Lantai: Bertutup dengan material bersesuaian / tape khas'],
-    ['C5','Tikar Antistatik (ESD Mat) / Lantai ESD: Dalam keadaan baik dan disambung ke bumi (jika ada)'],
-    ['C6','Sistem Lockout/Tagout (LOTO) atau pengasingan tenaga disediakan (jika berkenaan)'],
+    ['C1','Panel Elektrik Utama / Sub-Panel: Pintu panel sentiasa dikunci, tiada wayar terdedah, dan berlabel dengan jelas'],
+    ['C2','Kabel & Soket: Tiada kabel merekah/terkelupas/terdedah, tiada penyambungan soket berlebihan'],
+    ['C3','Stesen Pematerian (Soldering): Pemegang besi pemateri (soldering stand) selamat dan tiada risiko kebakaran/kabel terbakar'],
+    ['C4','Pendawaian Elektrik di Lantai: Pastikan bertutup dengan material yang bersesuaian dengan di tampal tape bersesuaian'],
+    ['C5','Working Area: Terdapat garisan working area'],
   ]},
   {code:'D', title:'Peralatan & Mesin', items:[
-    ['D1','Paparan Isyarat Amaran/Bahaya bagi mesin berisiko tinggi dipamerkan jelas'],
-    ['D2','Penghadang Mesin (Machine Guarding) dipasang pada bahagian berputar/berbahaya'],
-    ['D3','Butang Henti Kecemasan (E-Stop) berfungsi, mudah dicapai dan tidak terhalang'],
-    ['D4','Penyedut Wasap (Fume Extractor) berfungsi baik di stesen pematerian/pencucian'],
-    ['D5','Arahan Kerja Selamat (SWP) ditampal bersebelahan mesin berisiko tinggi'],
+    ['D1','Paparan Isyarat Amaran/Bahaya: Bagi Mesin/alatan yang berisiko tinggi'],
+    ['D2','Penghadang Mesin (Machine Guarding): Bahagian mesin yang berputar/berbahaya dipasang penghadang keselamatan'],
+    ['D3','Butang Henti Kecemasan (E-Stop): Disediakan pada mesin berisiko, berfungsi dengan baik, dan mudah dicapai'],
+    ['D4','Penyedut Asap (Fume Extractor): Berfungsi dengan baik di stesen pematerian atau ujian pencucian PCB'],
+    ['D5','Arahan Kerja Selamat (SWP) / SOP ringkas ditampal @ diletakkan bersebelahan mesin yang berisiko tinggi'],
   ]},
   {code:'E', title:'Personal Protective Equipment (PPE)', items:[
-    ['E1','Tanda amaran pemakaian PPE (Notis Mandatori) dipamerkan di pintu masuk'],
-    ['E2','PPE bersesuaian disediakan (kasut keselamatan, cermin mata, gelang ESD)'],
-    ['E3','Pelajar/staf mematuhi pemakaian PPE dan berpakaian sesuai/kemas'],
-    ['E4','PPE yang disediakan diselenggara dan disimpan di tempat yang sesuai'],
+    ['E1','Notis Mandatori PPE: Tanda amaran pemakaian PPE dipamerkan di pintu masuk makmal'],
+    ['E2','Ketersediaan PPE: PPE bersesuaian disediakan (kasut keselamatan, cermin mata keselamatan, gelang antistatik/ESD)'],
+    ['E3','Pematuhan Pengguna: Pelajar/staf memakai PPE dan berpakaian sesuai (kasut bertutup, tiada baju longgar/kemas)'],
+    ['E4','Penyelenggaraan PPE: PPE yang disediakan diselenggara'],
+    ['E5','Penyimpanan PPE: PPE (cth, seperti safety goggle milik makmal) disimpan di tempat yang bersih dan selamat selepas digunakan'],
   ]},
   {code:'F', title:'Kebakaran & Kecemasan', items:[
-    ['F1','Alat Pemadam Api sesuai (CO2/Serbuk Kering), diperiksa, dan tidak terhalang'],
-    ['F2','Laluan Evakuasi & Pintu Kecemasan bebas halangan, lampu "KELUAR" berfungsi'],
-    ['F3','Pelan Evakuasi & titik berkumpul dipamerkan jelas'],
-    ['F4','Peti Pertolongan Cemas lengkap, tiada ubat luput, ada rekod penggunaan'],
-    ['F5','Pengesan Asap (Smoke Detector) & Penggera bersih dan bebas halangan'],
+    ['F1','Alat Pemadam Api: Jenis yang sesuai (CO2 untuk elektrik / Serbuk Kering), telah diperiksa, dan tidak terhalang'],
+    ['F2','Laluan Evakuasi & Pintu Kecemasan: Bebas daripada sebarang halangan dan lampu tanda "KELUAR" berfungsi'],
+    ['F3','Pelan Evakuasi Kecemasan: Pelan laluan kecemasan dan titik berkumpul dipamerkan'],
+    ['F4','Peti Pertolongan Cemas (First Aid Kit): Kandungan lengkap, tiada ubat/kasa luput, dan rekod penggunaan disediakan'],
   ]},
-  {code:'G', title:'Bahan Kimia/Gas & Pengurusan Sisa', items:[
-    ['G1','Helaian Data Keselamatan (SDS) terkini ada untuk setiap bahan kimia/pelarut'],
-    ['G2','Semua bekas bahan kimia dilabel mengikut standard GHS dengan jelas'],
-    ['G3','Kit Tumpahan (Spill Kit) disediakan dan mudah dicapai'],
-    ['G4','Dulang Limpahan (Secondary Containment/Spill Tray) digunakan untuk cecair kimia'],
-    ['G5','Sisa Elektronik (E-Waste) & kimia diasingkan dan dilabel (JAS/DOE)'],
-    ['G6','Silinder Gas Bertekanan diikat teguh pada dinding/troli (jika ada)'],
+  {code:'G', title:'Bahan Kimia/Gas & Pengurusan Sisa (e-waste)', items:[
+    ['G1','Helaian Data Keselamatan (SDS): Terdapat SDS terkini bagi setiap bahan kimia (cth: cecair etching, pelarut, fluks)'],
+    ['G2','Pelabelan Bekas Kimia: Semua bekas pelarut/kimia diisi label GHS yang jelas dan tidak rosak'],
+    ['G3','Kit Tumpahan (Spill Kit): Spill kit kimia/minyak disediakan dan diletakkan di lokasi yang mudah dicapai'],
+    ['G4','Bekas Limpahan (Secondary Containment): Dulang limpahan (spill tray) digunakan di bawah bekas simpanan cecair kimia'],
+    ['G5','Pengurusan Sisa Elektronik (E-Waste): Komponen rosak, papan litar, dan bateri terpakai diasingkan mengikut kategori sisa'],
   ]},
 ];
 function getAllCodes(){ return SECTIONS.flatMap(s=>s.items.map(i=>i[0])); }
@@ -465,92 +465,21 @@ function itemText(code){ for(const s of SECTIONS){ for(const i of s.items){ if(i
 function sectionOf(code){ return SECTIONS.find(s=>code.startsWith(s.code)); }
 
 /* ============ PENGURUSAN STRUKTUR BORANG 1 (Admin sahaja) ============ */
-function nextSectionCode(){
-  let charCode = 65; // 'A'
-  const used = SECTIONS.map(s=>s.code);
-  while(used.includes(String.fromCharCode(charCode)) && charCode < 91) charCode++;
-  return String.fromCharCode(charCode);
-}
-function nextItemCode(sectionCode){
-  const sec = SECTIONS.find(s=>s.code===sectionCode);
-  if(!sec) return sectionCode+'1';
-  let n = 1;
-  const existing = sec.items.map(([c])=>c);
-  while(existing.includes(sectionCode+n)) n++;
-  return sectionCode+n;
-}
-function adminAddSection(){
-  const input = document.getElementById('newSectionTitle');
-  const title = input.value.trim();
-  if(!title){ toast('Sila masukkan nama bahagian.'); return; }
-  const code = nextSectionCode();
-  SECTIONS.push({code, title, items:[]});
-  input.value = '';
-  toast(`Bahagian ${code}. ${title} ditambah. Sila tambah sekurang-kurangnya satu item.`);
-  renderAdmin();
-}
-function adminUpdateSectionTitle(code, newTitle){
-  const sec = SECTIONS.find(s=>s.code===code);
-  if(sec && newTitle.trim()){ sec.title = newTitle.trim(); toast(`Tajuk Bahagian ${code} dikemas kini.`); }
-}
-function adminDeleteSection(code){
-  const sec = SECTIONS.find(s=>s.code===code);
-  if(!sec) return;
-  showConfirmModal(`Padam bahagian <b>${sec.code}. ${sec.title}</b> beserta ${sec.items.length} item di dalamnya? Skor sedia ada bagi item-item ini pada semua rekod audit akan hilang daripada pengiraan dan paparan laporan. Tindakan ini tidak boleh dibatalkan.`, function(){
-    const idx = SECTIONS.findIndex(s=>s.code===code);
-    if(idx>-1) SECTIONS.splice(idx,1);
-    const removedCodes = sec.items.map(([c])=>c);
-    STATE.admin.criticalItems = STATE.admin.criticalItems.filter(c=>!removedCodes.includes(c));
-    toast(`Bahagian ${sec.code} dan ${sec.items.length} item dipadam.`);
-    renderAdmin();
-  });
-}
-function adminAddItem(sectionCode){
-  const input = document.getElementById('newItemText-'+sectionCode);
-  const text = input.value.trim();
-  if(!text){ toast('Sila masukkan teks item.'); return; }
-  const sec = SECTIONS.find(s=>s.code===sectionCode);
-  if(!sec) return;
-  const code = nextItemCode(sectionCode);
-  sec.items.push([code, text]);
-  input.value = '';
-  toast(`Item ${code} ditambah pada Bahagian ${sectionCode}.`);
-  renderAdmin();
-}
-function adminUpdateItemText(sectionCode, itemCode, newText){
-  const sec = SECTIONS.find(s=>s.code===sectionCode);
-  if(!sec || !newText.trim()) return;
-  const item = sec.items.find(i=>i[0]===itemCode);
-  if(item){ item[1] = newText.trim(); toast(`Item ${itemCode} dikemas kini.`); }
-}
-function adminDeleteItem(sectionCode, itemCode){
-  const sec = SECTIONS.find(s=>s.code===sectionCode);
-  if(!sec) return;
-  if(sec.items.length<=1){ toast('Bahagian mesti ada sekurang-kurangnya 1 item. Padam keseluruhan bahagian sebaliknya.'); return; }
-  showConfirmModal(`Padam item <b>${itemCode}</b>? Skor sedia ada bagi item ini pada semua rekod audit akan hilang daripada pengiraan.`, function(){
-    sec.items = sec.items.filter(i=>i[0]!==itemCode);
-    STATE.admin.criticalItems = STATE.admin.criticalItems.filter(c=>c!==itemCode);
-    toast(`Item ${itemCode} dipadam.`);
-    renderAdmin();
-  });
-}
-
-const CRITICAL_DEFAULT = ['A2','A3','A6','A7','C1','C6','D2','D3','F1','F2','F4','G1','G3','G6'];
+const CRITICAL_DEFAULT = ['A2','A4','C1','C2','D2','D3','E1','E2','F1','F2','F4','G1','G2'];
 const CRITICAL_RATIONALE = {
-  A2:'Tiada SOP = risiko operasi mesin tanpa panduan selamat.',
-  A3:'HIRARC ialah asas penilaian risiko berkanun (Akta 514).',
-  A6:'Rekod kemalangan/near-miss wajib untuk siasatan & trend risiko.',
-  A7:'Nombor kecemasan lapuk melambatkan tindak balas kecemasan.',
+  A2:'Peraturan Am Makmal tidak dipamerkan = pengguna tiada rujukan keselamatan asas.',
+  A4:'HIRARC ialah asas penilaian risiko berkanun (Akta 514).',
   C1:'Panel elektrik terdedah = risiko kejutan elektrik/kebakaran serius.',
-  C6:'LOTO mengelak kecederaan semasa penyelenggaraan mesin.',
+  C2:'Kabel/soket rosak atau bersambung berlebihan = risiko kejutan elektrik & kebakaran.',
   D2:'Machine guarding mencegah kecederaan anggota badan.',
   D3:'E-Stop tidak berfungsi = tiada cara henti kecemasan.',
+  E1:'Notis PPE tiada = pengguna mungkin tidak sedar keperluan pemakaian PPE.',
+  E2:'PPE tiada disediakan = pengguna terdedah kepada bahaya tanpa perlindungan.',
   F1:'Alat pemadam api ialah baris pertahanan pertama kebakaran.',
   F2:'Laluan evakuasi tersekat mengancam nyawa semasa kecemasan.',
   F4:'Peti pertolongan cemas kritikal untuk kecederaan segera.',
   G1:'SDS wajib untuk pengendalian bahan kimia yang selamat.',
-  G3:'Spill kit perlu untuk kawal tumpahan kimia segera.',
-  G6:'Silinder gas tidak terikat berisiko tumbang/pecah injap.',
+  G2:'Label GHS tak jelas = risiko salah kendali bahan kimia berbahaya.',
 };
 
 function seedItems(overrides){
@@ -2137,35 +2066,8 @@ function renderAdmin(){
       </div>
     </div>
 
-    <div class="section-title">Struktur Borang 1 — Bahagian & Item Audit <div class="rule"></div></div>
-    <div class="callout">Tambah bahagian baharu (cth. selepas G), edit teks item sedia ada, tambah item baharu dalam mana-mana bahagian, atau padam item/bahagian yang tidak lagi releven. Perubahan terpakai serta-merta pada Borang 1 dan senarai Item Kritikal di bawah.</div>
-    ${SECTIONS.map(sec=>`
-      <div class="card" style="margin-bottom:12px;">
-        <div class="flex-between" style="margin-bottom:10px;">
-          <div style="display:flex;align-items:center;gap:10px;flex:1;">
-            <span class="code-chip lg">${sec.code}</span>
-            <input type="text" value="${sec.title}" style="font-weight:600;" onchange="adminUpdateSectionTitle('${sec.code}', this.value)">
-          </div>
-          <button class="btn sm danger" onclick="adminDeleteSection('${sec.code}')">🗑 Padam Bahagian</button>
-        </div>
-        ${sec.items.map(([code,text])=>`
-          <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line-soft);">
-            <span class="code-chip">${code}</span>
-            <input type="text" value="${text}" style="flex:1;" onchange="adminUpdateItemText('${sec.code}','${code}', this.value)">
-            <button class="btn sm danger" onclick="adminDeleteItem('${sec.code}','${code}')">🗑</button>
-          </div>`).join('')}
-        <div style="display:flex;gap:8px;margin-top:10px;">
-          <input type="text" id="newItemText-${sec.code}" placeholder="Teks item baharu untuk Bahagian ${sec.code}..." style="flex:1;">
-          <button class="btn sm" onclick="adminAddItem('${sec.code}')">+ Tambah Item</button>
-        </div>
-      </div>`).join('')}
-    <div class="card" style="display:flex;gap:8px;align-items:end;">
-      <div class="field" style="flex:1;margin-bottom:0;">
-        <label class="field-label">Nama Bahagian Baharu (kod diberi automatik, cth. H)</label>
-        <input type="text" id="newSectionTitle" placeholder="cth. Ergonomik & Kesihatan Pekerjaan">
-      </div>
-      <button class="btn primary" onclick="adminAddSection()">+ Tambah Bahagian Baharu</button>
-    </div>
+    <div class="section-title">Struktur Borang 1 <div class="rule"></div></div>
+    <div class="callout warn">⚠ Struktur checklist (39 item, 7 bahagian A-G) kini <b>TETAP</b> — ciri edit terus dalam pelayar telah dibuang sebab perubahan sebelum ini <b>TIDAK tersimpan</b> (hilang bila refresh). Struktur sedia ada dibina berdasarkan Akta Keselamatan & Kesihatan Pekerjaan 1994. Jika perlu ubah struktur secara rasmi, hubungi pembangun sistem untuk kemas kini kod sumber terus (rujuk Manual Developer).</div>
 
     <div class="section-title">Item Kritikal dalam Pengiraan Audit <div class="rule"></div></div>
     <div class="callout">
