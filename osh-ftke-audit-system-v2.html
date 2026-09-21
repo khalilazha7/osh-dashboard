@@ -401,6 +401,14 @@ async function loadAllDataFromBackend(){
   STATE.pendingRegistrations = res.registrations.map(r=>({...r, id:Number(r.id)}));
   const activeSess = STATE.sessions.filter(s=>s.status==='Aktif').sort((a,b)=>b.id-a.id)[0];
   STATE.activeSessionId = activeSess ? activeSess.id : null;
+  if(res.settings){
+    if(res.settings.kapasiti_teknologi!==undefined) STATE.admin.teknologi = Number(res.settings.kapasiti_teknologi)||0;
+    if(res.settings.kapasiti_induk!==undefined) STATE.admin.induk = Number(res.settings.kapasiti_induk)||0;
+    if(res.settings.delete_password) STATE.admin.deletePassword = res.settings.delete_password;
+    if(res.settings.critical_items_json){
+      try{ STATE.admin.criticalItems = JSON.parse(res.settings.critical_items_json); }catch(e){}
+    }
+  }
   return true;
 }
 
@@ -2046,10 +2054,11 @@ function renderAdmin(){
     </div>
 
     <div class="section-title">Sandaran Data <div class="rule"></div></div>
-    <div class="callout">💾 Muat turun SEMUA data sistem (pengguna, sesi, audit, NCR/OFI) sebagai satu fail — untuk perlindungan/rekod luar sistem. Kata laluan TIDAK disertakan (keselamatan).</div>
+    <div class="callout">💾 <b>Excel Dashboard</b> — sandaran lengkap dalam bentuk Dashboard boleh-baca (ringkasan automatik, pecahan setiap bahagian, semua jawapan item, NCR/OFI). <b>JSON/CSV</b> — format data mentah untuk sandaran/import teknikal. Kata laluan TIDAK disertakan (keselamatan) dalam semua format.</div>
     <div class="card">
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="btn primary" onclick="downloadBackupJson()">💾 Muat Turun Sandaran (.json)</button>
+        <button class="btn primary" onclick="downloadBackupExcelDashboard()">📈 Muat Turun Excel Dashboard (.xlsx)</button>
+        <button class="btn" onclick="downloadBackupJson()">💾 Muat Turun Sandaran (.json)</button>
         <button class="btn" onclick="downloadBackupCsv()">📊 Muat Turun Audit (.csv)</button>
       </div>
     </div>
@@ -2228,6 +2237,183 @@ function downloadBackupCsv(){
   link.href = url; link.download = `Sandaran_Audit_${new Date().toISOString().slice(0,10)}.csv`;
   document.body.appendChild(link); link.click(); document.body.removeChild(link);
   toast('Fail CSV audit dimuat turun.');
+}
+async function downloadBackupExcelDashboard(){
+  toast('Menjana Excel Dashboard... sila tunggu (mungkin ambil masa beberapa saat).');
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Sistem Audit OSH FTKE';
+  wb.created = new Date();
+
+  const HEADFILL = {type:'pattern', pattern:'solid', fgColor:{argb:'FF10243E'}};
+  const HEADFONT = {bold:true, color:{argb:'FFFFFFFF'}, name:'Arial', size:10};
+  function styleHeaderRow(row){ row.eachCell(c=>{ c.fill=HEADFILL; c.font=HEADFONT; c.alignment={vertical:'middle', wrapText:true}; }); row.height=26; }
+
+  const allAudits = STATE.audits.filter(a=>a.statusRekod!=='Draf');
+  const codes = getAllCodes();
+
+  // ========== 1. Audit_Ringkasan (satu baris = satu audit, pecahan % setiap bahagian) ==========
+  const wsRingkasan = wb.addWorksheet('Audit_Ringkasan');
+  const ringkasanHeaders = ['Bil','Sesi','Nama Makmal','Kampus','Lokasi','Tarikh Audit','Auditor','E-mel Auditor','PIC',
+    ...SECTIONS.map(s=>`${s.code}: % Pematuhan`), 'Skor Akhir (%)','Gred','Status','Pemicu Kritikal?','Bil. NCR','Bil. OFI','Status Rekod'];
+  wsRingkasan.addRow(ringkasanHeaders);
+  styleHeaderRow(wsRingkasan.getRow(1));
+  allAudits.forEach((a,i)=>{
+    const overall = computeScore(a.items);
+    const sectionPct = SECTIONS.map(sec=>{
+      let sum=0,max=0;
+      sec.items.forEach(([code])=>{
+        const it = a.items[code];
+        if(it && it.skor!==null && it.skor!=='NA'){ sum+=Number(it.skor); max+=2; }
+      });
+      return max>0 ? Number(((sum/max)*100).toFixed(1)) : null;
+    });
+    const critical = hasCriticalFail(a.items) ? 'YA' : 'TIDAK';
+    wsRingkasan.addRow([
+      i+1, sessionName(a.sesiId), a.namaMakmal||'', a.kampus||'', a.lokasi||'', fmtDate(a.tarikh), a.auditor||'', a.emailAuditor||'', a.pic||'',
+      ...sectionPct, a.statusRekod==='Draf'?null:Number(overall.pct.toFixed(1)), a.statusRekod==='Selesai'?overall.status:'', a.statusRekod==='Selesai'?overall.status:'Belum Selesai',
+      critical, (a.nc||[]).length, (a.ofi||[]).length, a.statusRekod
+    ]);
+  });
+  wsRingkasan.columns.forEach((col,i)=>{ col.width = i<9 ? 18 : 14; });
+  wsRingkasan.autoFilter = { from:'A1', to: String.fromCharCode(65+ringkasanHeaders.length-1)+'1' };
+  wsRingkasan.views = [{state:'frozen', ySplit:1}];
+
+  // ========== 2. Data_Item_Jawapan (satu baris = satu audit, SEMUA 39 skor item) ==========
+  const wsData = wb.addWorksheet('Data_Item_Jawapan');
+  const dataHeaders = ['Bil','Nama Makmal','Kampus','Sesi', ...codes.map(c=>`${c}: ${itemText(c).slice(0,40)}`)];
+  wsData.addRow(dataHeaders);
+  styleHeaderRow(wsData.getRow(1));
+  allAudits.forEach((a,i)=>{
+    wsData.addRow([i+1, a.namaMakmal||'', a.kampus||'', sessionName(a.sesiId), ...codes.map(c=> a.items[c] ? a.items[c].skor : '')]);
+  });
+  wsData.columns.forEach((col,i)=>{ col.width = i<4 ? 18 : 10; });
+  wsData.views = [{state:'frozen', xSplit:4, ySplit:1}];
+
+  // ========== 3. NCR_OFI_Detail ==========
+  const wsNcOfi = wb.addWorksheet('NCR_OFI_Detail');
+  wsNcOfi.addRow(['Jenis','Nama Makmal','Kampus','Sesi','Seksyen','Item Seksyen','Perincian / Cadangan','Cadangan Tindakan','Ada Gambar']);
+  styleHeaderRow(wsNcOfi.getRow(1));
+  allAudits.forEach(a=>{
+    (a.nc||[]).forEach(n=> wsNcOfi.addRow(['NCR', a.namaMakmal, a.kampus, sessionName(a.sesiId), n.seksyen, itemText(n.seksyen), n.penemuan||'', n.tindakan||'', n.gambar?'Ya':'Tiada']));
+    (a.ofi||[]).forEach(o=> wsNcOfi.addRow(['OFI', a.namaMakmal, a.kampus, sessionName(a.sesiId), o.seksyen, itemText(o.seksyen), o.cadangan||'', '', o.gambar?'Ya':'Tiada']));
+  });
+  wsNcOfi.columns = [{width:8},{width:24},{width:16},{width:20},{width:9},{width:34},{width:38},{width:34},{width:10}];
+  wsNcOfi.views = [{state:'frozen', ySplit:1}];
+
+  // ========== 4. Senarai_Pengguna ==========
+  const wsUsers = wb.addWorksheet('Senarai_Pengguna');
+  wsUsers.addRow(['ID','Nama','E-mel','Peranan','Kampus','Aktif']);
+  styleHeaderRow(wsUsers.getRow(1));
+  USERS.forEach(u=> wsUsers.addRow([u.id, u.nama, u.email, u.peranan, u.kampus, u.aktif?'Ya':'Tidak']));
+  wsUsers.columns = [{width:8},{width:24},{width:28},{width:12},{width:18},{width:10}];
+
+  // ========== 5. Sesi_Audit ==========
+  const wsSesi = wb.addWorksheet('Sesi_Audit');
+  wsSesi.addRow(['ID','Nama Sesi','Tarikh Mula','Status']);
+  styleHeaderRow(wsSesi.getRow(1));
+  STATE.sessions.forEach(s=> wsSesi.addRow([s.id, s.nama, s.tarikhMula, s.status]));
+  wsSesi.columns = [{width:8},{width:34},{width:16},{width:12}];
+
+  // ========== 0. Dashboard (formula rujuk Audit_Ringkasan - dinamik jika data diedit) ==========
+  const wsDash = wb.addWorksheet('Dashboard', {properties:{tabColor:{argb:'FF10243E'}}});
+  wb.views = [{firstSheet:0, activeTab:0}];
+  const lastRow = allAudits.length + 1;
+  const selesaiRange = `Audit_Ringkasan!R2:R${lastRow}`; // lajur 'Status Rekod' - kira posisi sebenar bawah
+  const statusRekodColLetter = String.fromCharCode(65 + ringkasanHeaders.length - 1);
+  const gredColIdx = 9 + SECTIONS.length + 2; // lajur 'Gred' (1-based)
+  const gredColLetter = String.fromCharCode(64 + gredColIdx);
+  const skorColLetter = String.fromCharCode(64 + gredColIdx - 1);
+  const kampusColLetter = 'D';
+
+  wsDash.mergeCells('A1:F1');
+  wsDash.getCell('A1').value = 'DASHBOARD — SISTEM AUDIT OSH FTKE';
+  wsDash.getCell('A1').font = {bold:true, size:16, color:{argb:'FF10243E'}, name:'Arial'};
+  wsDash.getCell('A2').value = `Dijana: ${fmtDate(new Date().toISOString())} · Sesi Fokus: ${sessionName(STATE.activeSessionId)}`;
+  wsDash.getCell('A2').font = {italic:true, size:10, color:{argb:'FF5B6773'}};
+
+  const statLabels = ['Jumlah Audit Selesai','Purata Skor Akhir (%)','Gred CEMERLANG','Gred BAIK','Gred MEMUASKAN','Gred PERLU PENAMBAHBAIKAN','Gred TIDAK MEMUASKAN'];
+  const statFormulas = [
+    `=COUNTIF(Audit_Ringkasan!${statusRekodColLetter}2:${statusRekodColLetter}${lastRow},"Selesai")`,
+    `=IFERROR(AVERAGEIF(Audit_Ringkasan!${statusRekodColLetter}2:${statusRekodColLetter}${lastRow},"Selesai",Audit_Ringkasan!${skorColLetter}2:${skorColLetter}${lastRow}),0)`,
+    `=COUNTIF(Audit_Ringkasan!${gredColLetter}2:${gredColLetter}${lastRow},"CEMERLANG")`,
+    `=COUNTIF(Audit_Ringkasan!${gredColLetter}2:${gredColLetter}${lastRow},"BAIK")`,
+    `=COUNTIF(Audit_Ringkasan!${gredColLetter}2:${gredColLetter}${lastRow},"MEMUASKAN")`,
+    `=COUNTIF(Audit_Ringkasan!${gredColLetter}2:${gredColLetter}${lastRow},"PERLU PENAMBAHBAIKAN")`,
+    `=COUNTIF(Audit_Ringkasan!${gredColLetter}2:${gredColLetter}${lastRow},"TIDAK MEMUASKAN")`,
+  ];
+  let r = 4;
+  wsDash.getCell('A'+r).value = 'RINGKASAN KESELURUHAN';
+  wsDash.getCell('A'+r).font = {bold:true, size:12, color:{argb:'FF2C5C86'}};
+  r++;
+  statLabels.forEach((lbl,i)=>{
+    wsDash.getCell('A'+r).value = lbl;
+    wsDash.getCell('A'+r).font = {bold:true, size:10};
+    wsDash.getCell('B'+r).value = { formula: statFormulas[i].slice(1) };
+    wsDash.getCell('B'+r).font = {size:12, bold:true, color:{argb:'FF10243E'}};
+    if(i===1) wsDash.getCell('B'+r).numFmt = '0.0"%"';
+    r++;
+  });
+
+  r += 1;
+  wsDash.getCell('A'+r).value = 'PERBANDINGAN KAMPUS';
+  wsDash.getCell('A'+r).font = {bold:true, size:12, color:{argb:'FF2C5C86'}};
+  r++;
+  const kampusHeadRow = r;
+  wsDash.getCell('A'+r).value = 'Kampus'; wsDash.getCell('B'+r).value = 'Bil. Diaudit'; wsDash.getCell('C'+r).value = 'Purata Skor (%)';
+  [wsDash.getCell('A'+r), wsDash.getCell('B'+r), wsDash.getCell('C'+r)].forEach(c=>{ c.font={bold:true,size:10}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEAF1F7'}}; });
+  r++;
+  ['Kampus Teknologi','Kampus Induk'].forEach(kampus=>{
+    wsDash.getCell('A'+r).value = kampus;
+    wsDash.getCell('B'+r).value = { formula: `COUNTIFS(Audit_Ringkasan!${statusRekodColLetter}2:${statusRekodColLetter}${lastRow},"Selesai",Audit_Ringkasan!${kampusColLetter}2:${kampusColLetter}${lastRow},"${kampus}")` };
+    wsDash.getCell('C'+r).value = { formula: `IFERROR(AVERAGEIFS(Audit_Ringkasan!${skorColLetter}2:${skorColLetter}${lastRow},Audit_Ringkasan!${statusRekodColLetter}2:${statusRekodColLetter}${lastRow},"Selesai",Audit_Ringkasan!${kampusColLetter}2:${kampusColLetter}${lastRow},"${kampus}"),0)` };
+    wsDash.getCell('C'+r).numFmt = '0.0"%"';
+    r++;
+  });
+
+  r += 1;
+  wsDash.getCell('A'+r).value = 'KAPASITI & LIPUTAN';
+  wsDash.getCell('A'+r).font = {bold:true, size:12, color:{argb:'FF2C5C86'}};
+  r++;
+  wsDash.getCell('A'+r).value = 'Kampus Teknologi — Kapasiti'; wsDash.getCell('B'+r).value = STATE.admin.teknologi; r++;
+  wsDash.getCell('A'+r).value = 'Kampus Induk — Kapasiti'; wsDash.getCell('B'+r).value = STATE.admin.induk; r++;
+
+  wsDash.getColumn('A').width = 34;
+  wsDash.getColumn('B').width = 18;
+  wsDash.getColumn('C').width = 18;
+
+  // ========== Panduan ==========
+  const wsPanduan = wb.addWorksheet('Panduan');
+  wsPanduan.getColumn('A').width = 100;
+  const panduanLines = [
+    ['SANDARAN DATA — SISTEM AUDIT OSH FTKE (Excel Dashboard)', true, 14],
+    ['', false, 10],
+    [`Dijana: ${fmtDate(new Date().toISOString())}`, false, 10],
+    ['', false, 10],
+    ['HELAIAN DALAM FAIL INI:', true, 11],
+    ['• Dashboard — ringkasan automatik (formula rujuk Audit_Ringkasan; kekal terkini jika data diedit)', false, 10],
+    ['• Audit_Ringkasan — satu baris = satu audit, pecahan % setiap bahagian (A-G), gred & status', false, 10],
+    ['• Data_Item_Jawapan — skor PENUH semua 39 item checklist bagi setiap audit', false, 10],
+    ['• NCR_OFI_Detail — senarai penuh penemuan NCR & cadangan OFI', false, 10],
+    ['• Senarai_Pengguna — semua akaun sistem (tiada kata laluan disertakan)', false, 10],
+    ['• Sesi_Audit — semua sesi audit yang pernah dicipta', false, 10],
+    ['', false, 10],
+    ['NOTA: Fail ini SNAPSHOT (data semasa dimuat turun) - tidak automatik segerak dengan sistem sebenar.', false, 10],
+    ['Muat turun semula bila-bila masa untuk dapatkan salinan terkini.', false, 10],
+  ];
+  panduanLines.forEach(([text,bold,size])=>{
+    const row = wsPanduan.addRow([text]);
+    row.getCell(1).font = {bold, size, color: bold&&size>=13 ? {argb:'FF10243E'}:{argb:'FF1E2A33'}};
+  });
+
+  wb.eachSheet(ws=>{ if(ws!==wsPanduan) ws.eachRow(row=> row.eachCell(c=>{ c.font = c.font || {name:'Arial', size:10}; })); });
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url; link.download = `Dashboard_Sandaran_OSH_${new Date().toISOString().slice(0,10)}.xlsx`;
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  toast('Excel Dashboard sandaran dijana & dimuat turun.');
 }
 function generateComplianceAnalysis(){
   const format = document.getElementById('analysisFormat').value;
@@ -2581,21 +2767,29 @@ function renderAdminUsers(){
   `;
 }
 
-function saveAdminCapacity(){
-  STATE.admin.teknologi = Number(document.getElementById('admTek').value)||0;
-  STATE.admin.induk = Number(document.getElementById('admInd').value)||0;
+async function saveAdminCapacity(){
+  const teknologi = Number(document.getElementById('admTek').value)||0;
+  const induk = Number(document.getElementById('admInd').value)||0;
+  const res = await apiCall('saveSettings', { settings: { kapasiti_teknologi: teknologi, kapasiti_induk: induk } });
+  if(!res.ok) return;
+  STATE.admin.teknologi = teknologi;
+  STATE.admin.induk = induk;
   toast('Kapasiti makmal disimpan.');
 }
-function saveDeletePassword(){
+async function saveDeletePassword(){
   const v = document.getElementById('admDeletePw').value.trim();
   if(!v){ toast('Kata laluan tidak boleh kosong.'); return; }
+  const res = await apiCall('saveSettings', { settings: { delete_password: v } });
+  if(!res.ok) return;
   STATE.admin.deletePassword = v;
   toast('Kata laluan pengesahan padam dikemas kini.');
 }
-function saveAdminCritical(){
+async function saveAdminCritical(){
   const boxes = document.querySelectorAll('.crit-check input[type=checkbox]');
   const chosen = [];
   boxes.forEach(b=>{ if(b.checked) chosen.push(b.dataset.code); });
+  const res = await apiCall('saveSettings', { settings: { critical_items_json: JSON.stringify(chosen) } });
+  if(!res.ok) return;
   STATE.admin.criticalItems = chosen;
   toast(`Senarai item kritikal dikemas kini (${chosen.length} item).`);
 }
