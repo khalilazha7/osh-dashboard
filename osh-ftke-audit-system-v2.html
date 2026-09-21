@@ -2299,6 +2299,7 @@ async function downloadBackupExcelDashboard(){
   });
   wsNcOfi.columns = [{width:8},{width:24},{width:16},{width:20},{width:9},{width:34},{width:38},{width:34},{width:10}];
   wsNcOfi.views = [{state:'frozen', ySplit:1}];
+  const ncOfiLastRow = Math.max(2, wsNcOfi.rowCount); // untuk formula Dashboard (bawah) - elak julat terbalik (A2:A1) jika tiada rekod
 
   // ========== 4. Senarai_Pengguna ==========
   const wsUsers = wb.addWorksheet('Senarai_Pengguna');
@@ -2331,7 +2332,7 @@ async function downloadBackupExcelDashboard(){
   wsDash.getCell('A2').value = `Dijana: ${fmtDate(new Date().toISOString())} · Sesi Fokus: ${sessionName(STATE.activeSessionId)}`;
   wsDash.getCell('A2').font = {italic:true, size:10, color:{argb:'FF5B6773'}};
 
-  const statLabels = ['Jumlah Audit Selesai','Purata Skor Akhir (%)','Gred CEMERLANG','Gred BAIK','Gred MEMUASKAN','Gred PERLU PENAMBAHBAIKAN','Gred TIDAK MEMUASKAN'];
+  const statLabels = ['Jumlah Audit Selesai','Purata Skor Akhir (%)','Gred CEMERLANG','Gred BAIK','Gred MEMUASKAN','Gred PERLU PENAMBAHBAIKAN','Gred TIDAK MEMUASKAN','Jumlah NCR (Keseluruhan)','Jumlah OFI (Keseluruhan)'];
   const statFormulas = [
     `=COUNTIF(Audit_Ringkasan!${statusRekodColLetter}2:${statusRekodColLetter}${lastRow},"Selesai")`,
     `=IFERROR(AVERAGEIF(Audit_Ringkasan!${statusRekodColLetter}2:${statusRekodColLetter}${lastRow},"Selesai",Audit_Ringkasan!${skorColLetter}2:${skorColLetter}${lastRow}),0)`,
@@ -2340,6 +2341,8 @@ async function downloadBackupExcelDashboard(){
     `=COUNTIF(Audit_Ringkasan!${gredColLetter}2:${gredColLetter}${lastRow},"MEMUASKAN")`,
     `=COUNTIF(Audit_Ringkasan!${gredColLetter}2:${gredColLetter}${lastRow},"PERLU PENAMBAHBAIKAN")`,
     `=COUNTIF(Audit_Ringkasan!${gredColLetter}2:${gredColLetter}${lastRow},"TIDAK MEMUASKAN")`,
+    `=COUNTIF(NCR_OFI_Detail!A2:A${ncOfiLastRow},"NCR")`,
+    `=COUNTIF(NCR_OFI_Detail!A2:A${ncOfiLastRow},"OFI")`,
   ];
   let r = 4;
   wsDash.getCell('A'+r).value = 'RINGKASAN KESELURUHAN';
@@ -2359,14 +2362,16 @@ async function downloadBackupExcelDashboard(){
   wsDash.getCell('A'+r).font = {bold:true, size:12, color:{argb:'FF2C5C86'}};
   r++;
   const kampusHeadRow = r;
-  wsDash.getCell('A'+r).value = 'Kampus'; wsDash.getCell('B'+r).value = 'Bil. Diaudit'; wsDash.getCell('C'+r).value = 'Purata Skor (%)';
-  [wsDash.getCell('A'+r), wsDash.getCell('B'+r), wsDash.getCell('C'+r)].forEach(c=>{ c.font={bold:true,size:10}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEAF1F7'}}; });
+  wsDash.getCell('A'+r).value = 'Kampus'; wsDash.getCell('B'+r).value = 'Bil. Diaudit'; wsDash.getCell('C'+r).value = 'Purata Skor (%)'; wsDash.getCell('D'+r).value = 'Bil. NCR'; wsDash.getCell('E'+r).value = 'Bil. OFI';
+  [wsDash.getCell('A'+r), wsDash.getCell('B'+r), wsDash.getCell('C'+r), wsDash.getCell('D'+r), wsDash.getCell('E'+r)].forEach(c=>{ c.font={bold:true,size:10}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEAF1F7'}}; });
   r++;
   ['Kampus Teknologi','Kampus Induk'].forEach(kampus=>{
     wsDash.getCell('A'+r).value = kampus;
     wsDash.getCell('B'+r).value = { formula: `COUNTIFS(Audit_Ringkasan!${statusRekodColLetter}2:${statusRekodColLetter}${lastRow},"Selesai",Audit_Ringkasan!${kampusColLetter}2:${kampusColLetter}${lastRow},"${kampus}")` };
     wsDash.getCell('C'+r).value = { formula: `IFERROR(AVERAGEIFS(Audit_Ringkasan!${skorColLetter}2:${skorColLetter}${lastRow},Audit_Ringkasan!${statusRekodColLetter}2:${statusRekodColLetter}${lastRow},"Selesai",Audit_Ringkasan!${kampusColLetter}2:${kampusColLetter}${lastRow},"${kampus}"),0)` };
     wsDash.getCell('C'+r).numFmt = '0.0"%"';
+    wsDash.getCell('D'+r).value = { formula: `COUNTIFS(NCR_OFI_Detail!A2:A${ncOfiLastRow},"NCR",NCR_OFI_Detail!C2:C${ncOfiLastRow},"${kampus}")` };
+    wsDash.getCell('E'+r).value = { formula: `COUNTIFS(NCR_OFI_Detail!A2:A${ncOfiLastRow},"OFI",NCR_OFI_Detail!C2:C${ncOfiLastRow},"${kampus}")` };
     r++;
   });
 
@@ -2380,6 +2385,8 @@ async function downloadBackupExcelDashboard(){
   wsDash.getColumn('A').width = 34;
   wsDash.getColumn('B').width = 18;
   wsDash.getColumn('C').width = 18;
+  wsDash.getColumn('D').width = 14;
+  wsDash.getColumn('E').width = 14;
 
   // ========== Panduan ==========
   const wsPanduan = wb.addWorksheet('Panduan');
