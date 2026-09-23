@@ -1110,9 +1110,11 @@ function renderDashboard(){
     .filter(a=>a.sesiId===focusSessionId)
     .filter(a=>dashboardCampusFilter==='Semua' || a.kampus===dashboardCampusFilter);
   const allScored = all.map(a=>computeScore(a.items));
-  const totalCapacity = dashboardCampusFilter==='Kampus Teknologi' ? STATE.admin.teknologi
-    : dashboardCampusFilter==='Kampus Induk' ? STATE.admin.induk
-    : STATE.admin.teknologi + STATE.admin.induk;
+  const focusSessTek = focusSession ? (Number(focusSession.kapasitiTeknologi) || STATE.admin.teknologi) : STATE.admin.teknologi;
+  const focusSessInd = focusSession ? (Number(focusSession.kapasitiInduk) || STATE.admin.induk) : STATE.admin.induk;
+  const totalCapacity = dashboardCampusFilter==='Kampus Teknologi' ? focusSessTek
+    : dashboardCampusFilter==='Kampus Induk' ? focusSessInd
+    : focusSessTek + focusSessInd;
   const overallAvg = allScored.length ? allScored.reduce((s,x)=>s+x.pct,0)/allScored.length : 0;
   const criticalCount = all.filter(a=>hasCriticalFail(a.items)).length;
   const totalNC = all.reduce((s,a)=>s+a.nc.length, 0);
@@ -2497,10 +2499,10 @@ async function downloadBackupExcelDashboard(){
 
   // ========== 5. Sesi_Audit ==========
   const wsSesi = wb.addWorksheet('Sesi_Audit');
-  wsSesi.addRow(['ID','Nama Sesi','Tarikh Mula','Status']);
+  wsSesi.addRow(['ID','Nama Sesi','Tarikh Mula','Status','Kapasiti Teknologi','Kapasiti Induk']);
   styleHeaderRow(wsSesi.getRow(1));
-  STATE.sessions.forEach(s=> wsSesi.addRow([s.id, s.nama, s.tarikhMula, s.status]));
-  wsSesi.columns = [{width:8},{width:34},{width:16},{width:12}];
+  STATE.sessions.forEach(s=> wsSesi.addRow([s.id, s.nama, s.tarikhMula, s.status, Number(s.kapasitiTeknologi)||0, Number(s.kapasitiInduk)||0]));
+  wsSesi.columns = [{width:8},{width:34},{width:16},{width:12},{width:16},{width:14}];
 
   // ========== 0. Dashboard (formula rujuk Audit_Ringkasan - dinamik jika data diedit) ==========
   const wsDash = wb.addWorksheet('Dashboard', {properties:{tabColor:{argb:'FF10243E'}}});
@@ -2566,8 +2568,15 @@ async function downloadBackupExcelDashboard(){
   wsDash.getCell('A'+r).value = 'KAPASITI & LIPUTAN';
   wsDash.getCell('A'+r).font = {bold:true, size:12, color:{argb:'FF2C5C86'}};
   r++;
-  wsDash.getCell('A'+r).value = 'Kampus Teknologi — Kapasiti'; wsDash.getCell('B'+r).value = STATE.admin.teknologi; r++;
-  wsDash.getCell('A'+r).value = 'Kampus Induk — Kapasiti'; wsDash.getCell('B'+r).value = STATE.admin.induk; r++;
+  if(backupSesiId!==null){
+    const backupSess = STATE.sessions.find(s=>s.id===backupSesiId);
+    wsDash.getCell('A'+r).value = `Kampus Teknologi — Kapasiti (${backupSess?backupSess.nama:''})`; wsDash.getCell('B'+r).value = backupSess ? Number(backupSess.kapasitiTeknologi)||0 : 0; r++;
+    wsDash.getCell('A'+r).value = `Kampus Induk — Kapasiti (${backupSess?backupSess.nama:''})`; wsDash.getCell('B'+r).value = backupSess ? Number(backupSess.kapasitiInduk)||0 : 0; r++;
+  } else {
+    wsDash.getCell('A'+r).value = 'Kapasiti berbeza ikut sesi — lihat helaian Sesi_Audit untuk pecahan penuh.';
+    wsDash.getCell('A'+r).font = {italic:true, size:10, color:{argb:'FF5B6773'}};
+    r++;
+  }
 
   wsDash.getColumn('A').width = 34;
   wsDash.getColumn('B').width = 18;
