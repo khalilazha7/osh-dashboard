@@ -2292,13 +2292,39 @@ async function downloadBackupExcelDashboard(){
 
   // ========== 3. NCR_OFI_Detail ==========
   const wsNcOfi = wb.addWorksheet('NCR_OFI_Detail');
-  wsNcOfi.addRow(['Jenis','Nama Makmal','Kampus','Sesi','Seksyen','Item Seksyen','Perincian / Cadangan','Cadangan Tindakan','Ada Gambar']);
+  wsNcOfi.addRow(['Jenis','Nama Makmal','Kampus','Sesi','Seksyen','Item Seksyen','Perincian / Cadangan','Cadangan Tindakan','Gambar']);
   styleHeaderRow(wsNcOfi.getRow(1));
-  allAudits.forEach(a=>{
-    (a.nc||[]).forEach(n=> wsNcOfi.addRow(['NCR', a.namaMakmal, a.kampus, sessionName(a.sesiId), n.seksyen, itemText(n.seksyen), n.penemuan||'', n.tindakan||'', n.gambar?'Ya':'Tiada']));
-    (a.ofi||[]).forEach(o=> wsNcOfi.addRow(['OFI', a.namaMakmal, a.kampus, sessionName(a.sesiId), o.seksyen, itemText(o.seksyen), o.cadangan||'', '', o.gambar?'Ya':'Tiada']));
-  });
-  wsNcOfi.columns = [{width:8},{width:24},{width:16},{width:20},{width:9},{width:34},{width:38},{width:34},{width:10}];
+  wsNcOfi.columns = [{width:8},{width:24},{width:16},{width:20},{width:9},{width:34},{width:38},{width:34},{width:22}];
+  const DETAIL_IMG_W_PX = 144; // 1.5 inci @ 96dpi
+  const DETAIL_IMG_H_PX = 96;  // 1 inci @ 96dpi
+  for(const a of allAudits){
+    for(const n of (a.nc||[])){
+      const row = wsNcOfi.addRow(['NCR', a.namaMakmal, a.kampus, sessionName(a.sesiId), n.seksyen, itemText(n.seksyen), n.penemuan||'', n.tindakan||'', n.gambar?'':'(tiada gambar)']);
+      if(n.gambar){
+        const raw = n.gambar.startsWith('data:') ? n.gambar : await fetchImageAsBase64(n.gambar);
+        if(raw){
+          const resized = await resizeImageToFit(raw, DETAIL_IMG_W_PX, DETAIL_IMG_H_PX);
+          const natSize = await getImageNaturalSize(resized);
+          row.height = Math.max(natSize.height * 0.75, 60);
+          const imgId = wb.addImage({base64: resized, extension: imgExtForExcel(resized)});
+          wsNcOfi.addImage(imgId, { tl:{col:8, row:row.number-1}, ext:{width:natSize.width, height:natSize.height} });
+        }
+      }
+    }
+    for(const o of (a.ofi||[])){
+      const row = wsNcOfi.addRow(['OFI', a.namaMakmal, a.kampus, sessionName(a.sesiId), o.seksyen, itemText(o.seksyen), o.cadangan||'', '', o.gambar?'':'(tiada gambar)']);
+      if(o.gambar){
+        const raw = o.gambar.startsWith('data:') ? o.gambar : await fetchImageAsBase64(o.gambar);
+        if(raw){
+          const resized = await resizeImageToFit(raw, DETAIL_IMG_W_PX, DETAIL_IMG_H_PX);
+          const natSize = await getImageNaturalSize(resized);
+          row.height = Math.max(natSize.height * 0.75, 60);
+          const imgId = wb.addImage({base64: resized, extension: imgExtForExcel(resized)});
+          wsNcOfi.addImage(imgId, { tl:{col:8, row:row.number-1}, ext:{width:natSize.width, height:natSize.height} });
+        }
+      }
+    }
+  }
   wsNcOfi.views = [{state:'frozen', ySplit:1}];
   const ncOfiLastRow = Math.max(2, wsNcOfi.rowCount); // untuk formula Dashboard (bawah) - elak julat terbalik (A2:A1) jika tiada rekod
 
