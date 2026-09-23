@@ -1089,7 +1089,9 @@ function dashboardFocusSessionId(){
 function campusStats(kampus, sesiId){
   const base = STATE.audits; // Dashboard = status keseluruhan FTKE (bukan terhad pemilik) - paparan peribadi ada di "Audit Saya"
   const list = base.filter(a=>a.kampus===kampus && a.sesiId===sesiId);
-  const capacity = kampus==='Kampus Teknologi' ? STATE.admin.teknologi : STATE.admin.induk;
+  const sess = STATE.sessions.find(s=>s.id===sesiId);
+  const legacyFallback = kampus==='Kampus Teknologi' ? STATE.admin.teknologi : STATE.admin.induk;
+  const capacity = sess ? (Number(kampus==='Kampus Teknologi' ? sess.kapasitiTeknologi : sess.kapasitiInduk) || legacyFallback) : legacyFallback;
   const scored = list.map(a=>computeScore(a.items));
   const avg = scored.length ? scored.reduce((s,x)=>s+x.pct,0)/scored.length : 0;
   const critCount = list.filter(a=>hasCriticalFail(a.items)).length;
@@ -1298,7 +1300,7 @@ function renderDashboard(){
     ${isAdmin() ? `
     <div class="section-title">Eksport & Cetak Data (Admin) <div class="rule"></div></div>
     <div class="card">
-      <div class="callout" style="margin-bottom:16px;">Admin boleh cetak/eksport <b>semua data audit</b> merentasi kedua-dua kampus, ditapis <b>mengikut kampus</b>, atau <b>satu makmal individu</b>. Auditor biasa hanya boleh jana dokumen bagi audit yang mereka cipta sendiri (lihat jadual di bawah).</div>
+      <div class="callout" style="margin-bottom:16px;">Admin boleh cetak/eksport <b>semua data audit</b> merentasi kedua-dua kampus (sesi yang dipaparkan di atas), ditapis <b>mengikut kampus</b>, atau <b>satu makmal individu</b>. Untuk laporan rentas SEMUA sesi (lama & baharu), guna panel yang sama di halaman <b>Pengurusan Audit</b>.</div>
       <div class="grid cols-2" style="align-items:end;">
         <div class="field" style="margin-bottom:0;">
           <label class="field-label">Skop Laporan</label>
@@ -1477,10 +1479,16 @@ function renderExportSubfilter(){
   }
 }
 
+function adminReportSessionId(){
+  const el = document.getElementById('adminReportSesi');
+  if(!el) return dashboardFocusSessionId(); // fallback selamat jika elemen tu belum dilukis
+  return el.value==='semua' ? null : Number(el.value);
+}
 function generateBulkDocument(){
   const scope = document.getElementById('exportScope').value;
   const format = document.getElementById('exportFormat').value;
-  let list = STATE.audits.filter(a=>a.statusRekod!=='Draf' && a.sesiId===dashboardFocusSessionId());
+  const sesiId = adminReportSessionId();
+  let list = STATE.audits.filter(a=>a.statusRekod!=='Draf' && (sesiId===null || a.sesiId===sesiId));
   let scopeLabel = 'Semua Makmal (Kedua-dua Kampus)';
   if(scope==='kampus'){
     const k = document.getElementById('exportKampus').value;
@@ -1606,8 +1614,8 @@ function generateScoreGraph(){
   const showOfi = document.getElementById('graphMetricOfi').checked;
   if(!showPct && !showKrit && !showNcr && !showOfi){ toast('Sila tandakan sekurang-kurangnya satu metrik untuk dipaparkan.'); return; }
 
-  const focusSessionId = dashboardFocusSessionId();
-  let list = STATE.audits.filter(a=>a.statusRekod!=='Draf' && a.sesiId===focusSessionId);
+  const sesiId = adminReportSessionId();
+  let list = STATE.audits.filter(a=>a.statusRekod!=='Draf' && (sesiId===null || a.sesiId===sesiId));
   if(scope!=='Semua') list = list.filter(a=>a.kampus===scope);
   if(!list.length){ toast('Tiada rekod audit untuk skop ini.'); return; }
 
@@ -1645,7 +1653,7 @@ function generateScoreGraph(){
 
   const scopeLabel = scope==='Semua' ? 'Semua Kampus' : scope;
   const orderLabel = order==='asc' ? 'Menaik (Terendah ke Tertinggi)' : 'Menurun (Tertinggi ke Terendah)';
-  const focusSess = STATE.sessions.find(s=>s.id===focusSessionId);
+  const sesiLabel = sesiId===null ? 'Semua Sesi' : sessionName(sesiId);
   const metricLabels = [showPct&&'% Markah', showKrit&&'Kritikal', showNcr&&'NCR', showOfi&&'OFI'].filter(Boolean).join(', ');
 
   const doc = `<!DOCTYPE html><html lang="ms"><head><meta charset="UTF-8"><title>Graf Makmal — ${scopeLabel}</title>
@@ -1661,7 +1669,7 @@ function generateScoreGraph(){
     @media print{ body{margin:0;} }
   </style></head><body>
   <h1>GRAF MAKMAL — MAKMAL FTKE</h1>
-  <h2 class="pageHead">Skop: ${scopeLabel} · Metrik: ${metricLabels} · Susunan: ${orderLabel} · ${focusSess?focusSess.nama:'-'} · Dijana ${fmtDate(new Date().toISOString())}</h2>
+  <h2 class="pageHead">Skop: ${scopeLabel} · Metrik: ${metricLabels} · Susunan: ${orderLabel} · ${sesiLabel} · Dijana ${fmtDate(new Date().toISOString())}</h2>
   ${showPct ? `<div class="legend">
     <span><i style="background:#1B7A3D;"></i> Cemerlang (≥90%)</span>
     <span><i style="background:#8FBC3F;"></i> Baik (≥80%)</span>
@@ -1687,9 +1695,9 @@ async function generateNcOfiReport(){
   const scope = document.getElementById('ncOfiScope').value; // 'Semua' | 'Kampus Teknologi' | 'Kampus Induk'
   const format = document.getElementById('ncOfiFormat').value;
   const includeGambar = document.getElementById('ncOfiIncludeGambar').checked && type!=='kritikal';
-  const focusSessionId = dashboardFocusSessionId();
+  const sesiId = adminReportSessionId();
 
-  let audits = STATE.audits.filter(a=>a.statusRekod!=='Draf' && a.sesiId===focusSessionId);
+  let audits = STATE.audits.filter(a=>a.statusRekod!=='Draf' && (sesiId===null || a.sesiId===sesiId));
   if(scope!=='Semua') audits = audits.filter(a=>a.kampus===scope);
 
   const entries = [];
@@ -1841,7 +1849,7 @@ async function generateNcOfiReport(){
     @media print{ body{margin:0;} }
   </style></head><body>
   <h1>LAPORAN ${fileTag==='Kritikal'?'ITEM KRITIKAL GAGAL (KKP)':fileTag} — MAKMAL FTKE</h1>
-  <h2>Skop: ${scopeLabel} · ${focusSessionId ? sessionName(focusSessionId) : '-'} · Dijana ${fmtDate(new Date().toISOString())}</h2>
+  <h2>Skop: ${scopeLabel} · ${sesiId===null ? 'Semua Sesi' : sessionName(sesiId)} · Dijana ${fmtDate(new Date().toISOString())}</h2>
   <div class="meta"><b>Jumlah Rekod ${fileTag}:</b> ${entries.length} &nbsp;|&nbsp; <b>Jumlah Makmal Terlibat:</b> ${new Set(entries.map(e=>e.makmal)).size}</div>
   <table>
     <thead>${thead}</thead>
@@ -1998,19 +2006,162 @@ function renderAdmin(){
       </table>
     </div>
 
-    <div class="section-title">Kapasiti Makmal Mengikut Kampus <div class="rule"></div></div>
-    <div class="card grid cols-2">
-      <div class="field" style="margin-bottom:0;">
-        <label class="field-label">Jumlah Makmal — Kampus Teknologi</label>
-        <input type="number" id="admTek" min="0" value="${STATE.admin.teknologi}">
-      </div>
-      <div class="field" style="margin-bottom:0;">
-        <label class="field-label">Jumlah Makmal — Kampus Induk</label>
-        <input type="number" id="admInd" min="0" value="${STATE.admin.induk}">
+    <div class="section-title">Laporan & Dokumen — Rentas Semua Sesi <div class="rule"></div></div>
+    <div class="callout">📁 Semua alat di bawah <b>TIDAK terhad</b> kepada sesi semasa — pilih "Semua Sesi" untuk gabungkan data lama & baharu, atau pilih satu sesi tertentu (termasuk sesi yang sudah "Selesai") untuk fokus laporan/dokumen kepada sesi tersebut sahaja.</div>
+    <div class="card" style="margin-bottom:14px;">
+      <div class="field" style="max-width:320px;margin-bottom:0;">
+        <label class="field-label">Skop Sesi (terpakai pada SEMUA alat di bawah)</label>
+        <select id="adminReportSesi">
+          <option value="semua">Semua Sesi (Gabungan)</option>
+          ${[...STATE.sessions].sort((a,b)=>b.id-a.id).map(s=>`<option value="${s.id}">${s.nama} (${s.status})</option>`).join('')}
+        </select>
       </div>
     </div>
-    <div style="margin-top:10px;">
-      <button class="btn primary" onclick="saveAdminCapacity()">Simpan Kapasiti</button>
+
+    <div class="section-title">Eksport & Cetak Data (Admin) <div class="rule"></div></div>
+    <div class="card">
+      <div class="callout" style="margin-bottom:16px;">Cetak/eksport <b>semua data audit</b> dalam skop sesi dipilih di atas, ditapis <b>mengikut kampus</b>, atau <b>satu makmal individu</b>.</div>
+      <div class="grid cols-2" style="align-items:end;">
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Skop Laporan</label>
+          <select id="exportScope" onchange="renderExportSubfilter()">
+            <option value="semua">Semua Makmal (Kedua-dua Kampus)</option>
+            <option value="kampus">Ikut Kampus</option>
+            <option value="makmal">Makmal Individu</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0;" id="exportSubfilterWrap"></div>
+      </div>
+      <div class="field" style="margin-top:10px;max-width:220px;">
+        <label class="field-label">Format Dokumen</label>
+        <select id="exportFormat">
+          <option value="word">Dokumen Word (.doc)</option>
+          <option value="html">Laman Web (.html)</option>
+          <option value="excel">Hamparan Excel (.xlsx)</option>
+        </select>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px;">
+        <button class="btn primary" onclick="generateBulkDocument()">⤓ Jana Laporan Pukal</button>
+        <span id="exportScopeHint" class="stat-note" style="align-self:center;"></span>
+      </div>
+    </div>
+
+    <div class="section-title">Cetak Laporan NCR / OFI / Kritikal Keseluruhan <div class="rule"></div></div>
+    <div class="card">
+      <div class="callout" style="margin-bottom:16px;">Jana satu senarai konsolidasi semua NCR atau semua OFI merentasi berbilang makmal dalam skop sesi dipilih di atas, ditapis ikut kampus.</div>
+      <div class="grid cols-2" style="align-items:end;">
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Jenis Laporan</label>
+          <select id="ncOfiType">
+            <option value="nc">Laporan NCR (Ketidakpatuhan)</option>
+            <option value="ofi">Laporan OFI (Cadangan Penambahbaikan)</option>
+            <option value="kritikal">Laporan Item Kritikal Gagal (KKP)</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Skop Kampus</label>
+          <select id="ncOfiScope">
+            <option value="Semua">Semua Kampus</option>
+            <option value="Kampus Teknologi">Kampus Teknologi</option>
+            <option value="Kampus Induk">Kampus Induk</option>
+          </select>
+        </div>
+      </div>
+      <div class="field" style="margin-top:10px;max-width:220px;">
+        <label class="field-label">Format Dokumen</label>
+        <select id="ncOfiFormat">
+          <option value="word">Dokumen Word (.doc)</option>
+          <option value="html">Laman Web (.html)</option>
+          <option value="excel">Hamparan Excel (.xlsx)</option>
+        </select>
+      </div>
+      <div style="margin-top:10px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="ncOfiIncludeGambar" style="width:auto;accent-color:var(--steel);"> Sertakan lajur Gambar (Word akan dijana dalam mod landskap)
+        </label>
+      </div>
+      <div style="margin-top:14px;">
+        <button class="btn primary" onclick="generateNcOfiReport()">⤓ Jana Laporan NCR/OFI</button>
+      </div>
+    </div>
+
+    <div class="section-title">Graf Makmal <div class="rule"></div></div>
+    <div class="card">
+      <div class="callout" style="margin-bottom:16px;">📊 Jana graf bar untuk metrik dipilih (dalam skop sesi & kampus dipilih), disusun menaik atau menurun — mudah kenal pasti makmal paling lemah/terbaik sekali imbas.</div>
+      <div class="grid cols-2" style="align-items:end;">
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Skop Kampus</label>
+          <select id="graphScope">
+            <option value="Semua">Semua Kampus</option>
+            <option value="Kampus Teknologi">Kampus Teknologi</option>
+            <option value="Kampus Induk">Kampus Induk</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label class="field-label">Susunan</label>
+          <select id="graphOrder">
+            <option value="desc">Menurun (Tertinggi → Terendah)</option>
+            <option value="asc">Menaik (Terendah → Tertinggi)</option>
+          </select>
+        </div>
+      </div>
+      <div class="field" style="margin-top:10px;margin-bottom:0;">
+        <label class="field-label">Metrik Dipaparkan (boleh pilih lebih daripada satu)</label>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:6px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="graphMetricPct" checked style="width:auto;accent-color:var(--steel);"> % Markah
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="graphMetricKrit" style="width:auto;accent-color:var(--red);"> Kritikal
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="graphMetricNcr" style="width:auto;accent-color:var(--amber);"> NCR
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="graphMetricOfi" style="width:auto;accent-color:var(--steel);"> OFI
+          </label>
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <button class="btn primary" onclick="generateScoreGraph()">📊 Jana Graf</button>
+      </div>
+    </div>
+
+    <div class="section-title">Jana Dokumen Audit Mengikut Makmal <div class="rule"></div></div>
+    <div class="card" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;">
+        <label class="field-label">Pilih Makmal (SEMUA sesi, lama & baharu)</label>
+        <select id="dashSelectMakmal">
+          ${[...STATE.audits].filter(a=>a.statusRekod!=='Draf').sort((a,b)=>new Date(b.tarikh||0)-new Date(a.tarikh||0)).map(a=>`<option value="${a.id}">${a.namaMakmal} — ${a.kampus} (${fmtDate(a.tarikh)}) · ${sessionName(a.sesiId)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="min-width:170px;">
+        <label class="field-label">Format Dokumen</label>
+        <select id="dashFormat">
+          <option value="word">Dokumen Word (.doc)</option>
+          <option value="html">Laman Web (.html)</option>
+          <option value="excel">Hamparan Excel (.xlsx)</option>
+        </select>
+      </div>
+      <button class="btn" onclick="viewAuditDetail(document.getElementById('dashSelectMakmal').value)">Lihat Butiran</button>
+      <button class="btn primary" onclick="generateDocument(document.getElementById('dashSelectMakmal').value, document.getElementById('dashFormat').value)">⤓ Jana Dokumen</button>
+    </div>
+
+    <div class="section-title">Kapasiti Makmal Mengikut Kampus <div class="rule"></div></div>
+    <div class="callout">⚠ Kapasiti disimpan <b>berasingan untuk setiap sesi</b> — ubah nilai di sini HANYA jejas sesi yang dipilih di bawah, sesi lain kekal tidak berubah.</div>
+    <div class="card">
+      <div class="field" style="max-width:320px;">
+        <label class="field-label">Pilih Sesi</label>
+        <select id="admKapasitiSesi" onchange="renderAdminCapacityFields()">
+          ${[...STATE.sessions].sort((a,b)=>b.id-a.id).map(s=>`<option value="${s.id}">${s.nama} (${s.status})</option>`).join('')}
+        </select>
+      </div>
+      <div class="grid cols-2" id="admKapasitiFieldsWrap">
+        ${renderAdminCapacityFieldsInner()}
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn primary" onclick="saveAdminCapacity()">Simpan Kapasiti (Sesi Dipilih Sahaja)</button>
+      </div>
     </div>
 
     <div class="section-title">Pelan Tindakan <div class="rule"></div></div>
@@ -2057,7 +2208,14 @@ function renderAdmin(){
     <div class="section-title">Sandaran Data <div class="rule"></div></div>
     <div class="callout">💾 <b>Excel Dashboard</b> — sandaran lengkap dalam bentuk Dashboard boleh-baca (ringkasan automatik, pecahan setiap bahagian, semua jawapan item, NCR/OFI). <b>JSON/CSV</b> — format data mentah untuk sandaran/import teknikal. Kata laluan TIDAK disertakan (keselamatan) dalam semua format.</div>
     <div class="card">
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div class="field" style="max-width:320px;">
+        <label class="field-label">Skop Sesi untuk Excel Dashboard</label>
+        <select id="backupSesiScope">
+          <option value="semua">Semua Sesi (Gabungan)</option>
+          ${[...STATE.sessions].sort((a,b)=>b.id-a.id).map(s=>`<option value="${s.id}">${s.nama} (${s.status})</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
         <button class="btn primary" onclick="downloadBackupExcelDashboard()">📈 Muat Turun Excel Dashboard (.xlsx)</button>
         <button class="btn" onclick="downloadBackupJson()">💾 Muat Turun Sandaran (.json)</button>
         <button class="btn" onclick="downloadBackupCsv()">📊 Muat Turun Audit (.csv)</button>
@@ -2249,7 +2407,9 @@ async function downloadBackupExcelDashboard(){
   const HEADFONT = {bold:true, color:{argb:'FFFFFFFF'}, name:'Arial', size:10};
   function styleHeaderRow(row){ row.eachCell(c=>{ c.fill=HEADFILL; c.font=HEADFONT; c.alignment={vertical:'middle', wrapText:true}; }); row.height=26; }
 
-  const allAudits = STATE.audits.filter(a=>a.statusRekod!=='Draf');
+  const backupSesiEl = document.getElementById('backupSesiScope');
+  const backupSesiId = (backupSesiEl && backupSesiEl.value!=='semua') ? Number(backupSesiEl.value) : null;
+  const allAudits = STATE.audits.filter(a=>a.statusRekod!=='Draf' && (backupSesiId===null || a.sesiId===backupSesiId));
   const codes = getAllCodes();
 
   // ========== 1. Audit_Ringkasan (satu baris = satu audit, pecahan % setiap bahagian) ==========
@@ -2356,7 +2516,7 @@ async function downloadBackupExcelDashboard(){
   wsDash.mergeCells('A1:F1');
   wsDash.getCell('A1').value = 'DASHBOARD — SISTEM AUDIT OSH FTKE';
   wsDash.getCell('A1').font = {bold:true, size:16, color:{argb:'FF10243E'}, name:'Arial'};
-  wsDash.getCell('A2').value = `Dijana: ${fmtDate(new Date().toISOString())} · Sesi Fokus: ${sessionName(STATE.activeSessionId)}`;
+  wsDash.getCell('A2').value = `Dijana: ${fmtDate(new Date().toISOString())} · Skop: ${backupSesiId===null ? 'Semua Sesi (Gabungan)' : sessionName(backupSesiId)}`;
   wsDash.getCell('A2').font = {italic:true, size:10, color:{argb:'FF5B6773'}};
 
   const statLabels = ['Jumlah Audit Selesai','Purata Skor Akhir (%)','Gred CEMERLANG','Gred BAIK','Gred MEMUASKAN','Gred PERLU PENAMBAHBAIKAN','Gred TIDAK MEMUASKAN','Jumlah NCR (Keseluruhan)','Jumlah OFI (Keseluruhan)'];
@@ -2801,14 +2961,38 @@ function renderAdminUsers(){
   `;
 }
 
+function renderAdminCapacityFieldsInner(){
+  const sel = document.getElementById('admKapasitiSesi');
+  const sesiId = sel ? Number(sel.value) : STATE.activeSessionId;
+  const sess = STATE.sessions.find(s=>s.id===sesiId) || STATE.sessions[0];
+  const tek = sess ? (sess.kapasitiTeknologi||0) : 0;
+  const ind = sess ? (sess.kapasitiInduk||0) : 0;
+  return `
+    <div class="field" style="margin-bottom:0;">
+      <label class="field-label">Jumlah Makmal — Kampus Teknologi</label>
+      <input type="number" id="admTek" min="0" value="${tek}">
+    </div>
+    <div class="field" style="margin-bottom:0;">
+      <label class="field-label">Jumlah Makmal — Kampus Induk</label>
+      <input type="number" id="admInd" min="0" value="${ind}">
+    </div>`;
+}
+function renderAdminCapacityFields(){
+  const wrap = document.getElementById('admKapasitiFieldsWrap');
+  if(wrap) wrap.innerHTML = renderAdminCapacityFieldsInner();
+}
 async function saveAdminCapacity(){
+  const sel = document.getElementById('admKapasitiSesi');
+  const sesiId = Number(sel.value);
+  const sess = STATE.sessions.find(s=>s.id===sesiId);
+  if(!sess){ toast('Sesi tidak dijumpai.'); return; }
   const teknologi = Number(document.getElementById('admTek').value)||0;
   const induk = Number(document.getElementById('admInd').value)||0;
-  const res = await apiCall('saveSettings', { settings: { kapasiti_teknologi: teknologi, kapasiti_induk: induk } });
+  const res = await apiCall('saveSession', { session: { id:sess.id, nama:sess.nama, tarikhMula:sess.tarikhMula, status:sess.status, kapasitiTeknologi:teknologi, kapasitiInduk:induk } });
   if(!res.ok) return;
-  STATE.admin.teknologi = teknologi;
-  STATE.admin.induk = induk;
-  toast('Kapasiti makmal disimpan.');
+  sess.kapasitiTeknologi = teknologi;
+  sess.kapasitiInduk = induk;
+  toast(`Kapasiti makmal untuk "${sess.nama}" disimpan.`);
 }
 async function saveDeletePassword(){
   const v = document.getElementById('admDeletePw').value.trim();
