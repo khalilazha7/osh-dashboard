@@ -2153,11 +2153,11 @@ function renderAdmin(){
       <div class="field" style="max-width:320px;">
         <label class="field-label">Pilih Sesi</label>
         <select id="admKapasitiSesi" onchange="renderAdminCapacityFields()">
-          ${[...STATE.sessions].sort((a,b)=>b.id-a.id).map(s=>`<option value="${s.id}">${s.nama} (${s.status})</option>`).join('')}
+          ${[...STATE.sessions].sort((a,b)=>b.id-a.id).map(s=>`<option value="${s.id}" ${s.id===STATE.activeSessionId?'selected':''}>${s.nama} (${s.status})${s.id===STATE.activeSessionId?' ★ Sesi Semasa (sama seperti Dashboard)':''}</option>`).join('')}
         </select>
       </div>
       <div class="grid cols-2" id="admKapasitiFieldsWrap">
-        ${renderAdminCapacityFieldsInner()}
+        ${renderAdminCapacityFieldsInner(STATE.activeSessionId)}
       </div>
       <div style="margin-top:10px;">
         <button class="btn primary" onclick="saveAdminCapacity()">Simpan Kapasiti (Sesi Dipilih Sahaja)</button>
@@ -2961,9 +2961,16 @@ function renderAdminUsers(){
   `;
 }
 
-function renderAdminCapacityFieldsInner(){
-  const sel = document.getElementById('admKapasitiSesi');
-  const sesiId = sel ? Number(sel.value) : STATE.activeSessionId;
+function renderAdminCapacityFieldsInner(explicitSesiId){
+  // NOTA: bila dipanggil semasa bina HTML awal (renderAdmin), elemen <select> belum wujud
+  // dalam DOM lagi - JANGAN baca document.getElementById('admKapasitiSesi') pada ketika ini,
+  // sebaliknya terima sesiId terus. onchange (renderAdminCapacityFields) selamat baca DOM sebab
+  // dipanggil SELEPAS elemen wujud.
+  let sesiId = explicitSesiId;
+  if(sesiId===undefined){
+    const sel = document.getElementById('admKapasitiSesi');
+    sesiId = sel ? Number(sel.value) : STATE.activeSessionId;
+  }
   const sess = STATE.sessions.find(s=>s.id===sesiId) || STATE.sessions[0];
   const tek = sess ? (sess.kapasitiTeknologi||0) : 0;
   const ind = sess ? (sess.kapasitiInduk||0) : 0;
