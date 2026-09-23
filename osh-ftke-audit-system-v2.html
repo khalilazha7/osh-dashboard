@@ -1481,6 +1481,34 @@ function renderExportSubfilter(){
   }
 }
 
+function adminMakmalPickerInner(explicitSesiId){
+  // NOTA: sama macam renderAdminCapacityFieldsInner - elak baca DOM semasa bina HTML awal
+  // (elemen adminReportSesi belum wujud lagi ketika ini). onchange selamat baca DOM terus.
+  const sesiId = explicitSesiId!==undefined ? explicitSesiId : adminReportSessionId();
+  const list = [...STATE.audits].filter(a=>a.statusRekod!=='Draf' && (sesiId===null || a.sesiId===sesiId))
+    .sort((a,b)=>new Date(b.tarikh||0)-new Date(a.tarikh||0));
+  return `
+    <div style="flex:1;min-width:200px;">
+      <label class="field-label">Pilih Makmal ${sesiId===null?'(SEMUA sesi)':'('+sessionName(sesiId)+' sahaja)'}</label>
+      <select id="dashSelectMakmal">
+        ${list.length ? list.map(a=>`<option value="${a.id}">${a.namaMakmal} — ${a.kampus} (${fmtDate(a.tarikh)}) · ${sessionName(a.sesiId)}</option>`).join('') : '<option value="">(Tiada audit untuk skop ini)</option>'}
+      </select>
+    </div>
+    <div style="min-width:170px;">
+      <label class="field-label">Format Dokumen</label>
+      <select id="dashFormat">
+        <option value="word">Dokumen Word (.doc)</option>
+        <option value="html">Laman Web (.html)</option>
+        <option value="excel">Hamparan Excel (.xlsx)</option>
+      </select>
+    </div>
+    <button class="btn" onclick="viewAuditDetail(document.getElementById('dashSelectMakmal').value)">Lihat Butiran</button>
+    <button class="btn primary" onclick="generateDocument(document.getElementById('dashSelectMakmal').value, document.getElementById('dashFormat').value)">⤓ Jana Dokumen</button>`;
+}
+function renderAdminMakmalPicker(){
+  const wrap = document.getElementById('adminMakmalPickerWrap');
+  if(wrap) wrap.innerHTML = adminMakmalPickerInner();
+}
 function adminReportSessionId(){
   const el = document.getElementById('adminReportSesi');
   if(!el) return dashboardFocusSessionId(); // fallback selamat jika elemen tu belum dilukis
@@ -2013,7 +2041,7 @@ function renderAdmin(){
     <div class="card" style="margin-bottom:14px;">
       <div class="field" style="max-width:320px;margin-bottom:0;">
         <label class="field-label">Skop Sesi (terpakai pada SEMUA alat di bawah)</label>
-        <select id="adminReportSesi">
+        <select id="adminReportSesi" onchange="renderAdminMakmalPicker()">
           <option value="semua">Semua Sesi (Gabungan)</option>
           ${[...STATE.sessions].sort((a,b)=>b.id-a.id).map(s=>`<option value="${s.id}">${s.nama} (${s.status})</option>`).join('')}
         </select>
@@ -2130,23 +2158,8 @@ function renderAdmin(){
     </div>
 
     <div class="section-title">Jana Dokumen Audit Mengikut Makmal <div class="rule"></div></div>
-    <div class="card" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
-      <div style="flex:1;min-width:200px;">
-        <label class="field-label">Pilih Makmal (SEMUA sesi, lama & baharu)</label>
-        <select id="dashSelectMakmal">
-          ${[...STATE.audits].filter(a=>a.statusRekod!=='Draf').sort((a,b)=>new Date(b.tarikh||0)-new Date(a.tarikh||0)).map(a=>`<option value="${a.id}">${a.namaMakmal} — ${a.kampus} (${fmtDate(a.tarikh)}) · ${sessionName(a.sesiId)}</option>`).join('')}
-        </select>
-      </div>
-      <div style="min-width:170px;">
-        <label class="field-label">Format Dokumen</label>
-        <select id="dashFormat">
-          <option value="word">Dokumen Word (.doc)</option>
-          <option value="html">Laman Web (.html)</option>
-          <option value="excel">Hamparan Excel (.xlsx)</option>
-        </select>
-      </div>
-      <button class="btn" onclick="viewAuditDetail(document.getElementById('dashSelectMakmal').value)">Lihat Butiran</button>
-      <button class="btn primary" onclick="generateDocument(document.getElementById('dashSelectMakmal').value, document.getElementById('dashFormat').value)">⤓ Jana Dokumen</button>
+    <div class="card" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;" id="adminMakmalPickerWrap">
+      ${adminMakmalPickerInner(null)}
     </div>
 
     <div class="section-title">Kapasiti Makmal Mengikut Kampus <div class="rule"></div></div>
@@ -2167,7 +2180,7 @@ function renderAdmin(){
     </div>
 
     <div class="section-title">Pelan Tindakan <div class="rule"></div></div>
-    <div class="callout">📋 Jana dokumen Pelan Tindakan (Word/Excel) merangkumi semua NCR dan Item Kritikal gagal dalam sesi audit dipaparkan — lengkap dengan lajur <b>Status Tindakan</b> dan <b>Tarikh Sasaran Pembetulan</b> untuk diisi secara manual semasa sesi susulan/pemantauan.</div>
+    <div class="callout">📋 Jana dokumen Pelan Tindakan (Word/Excel) merangkumi semua NCR dan Item Kritikal gagal dalam <b>Skop Sesi dipilih di atas</b> — lengkap dengan lajur <b>Status Tindakan</b> dan <b>Tarikh Sasaran Pembetulan</b> untuk diisi secara manual semasa sesi susulan/pemantauan.</div>
     <div class="card">
       <div class="grid cols-2" style="align-items:end;">
         <div class="field" style="margin-bottom:0;">
@@ -2193,7 +2206,7 @@ function renderAdmin(){
     </div>
 
     <div class="section-title">Analisis Pematuhan <div class="rule"></div></div>
-    <div class="callout">📈 Jana laporan analisis merentasi <b>semua sesi</b> (bukan sekadar sesi semasa) — 10 item paling kerap gagal, trend pematuhan antara sesi, perbandingan kampus, dan bahagian paling lemah.</div>
+    <div class="callout">📈 Jana laporan analisis dalam <b>Skop Sesi dipilih di atas</b> — 10 item paling kerap gagal, trend pematuhan antara sesi, perbandingan kampus, dan bahagian paling lemah. Pilih "Semua Sesi" untuk lihat trend merentasi semua sesi; pilih satu sesi untuk fokus analisis kepada sesi tersebut sahaja.</div>
     <div class="card">
       <div class="field" style="max-width:220px;">
         <label class="field-label">Format Dokumen</label>
@@ -2284,8 +2297,8 @@ function renderPlanSubfilter(){
 function generateActionPlan(){
   const scope = document.getElementById('planScope').value;
   const format = document.getElementById('planFormat').value;
-  const focusSessionId = dashboardFocusSessionId ? dashboardFocusSessionId() : STATE.activeSessionId;
-  let list = STATE.audits.filter(a=>a.statusRekod!=='Draf' && a.sesiId===focusSessionId);
+  const sesiId = adminReportSessionId();
+  let list = STATE.audits.filter(a=>a.statusRekod!=='Draf' && (sesiId===null || a.sesiId===sesiId));
   let scopeLabel = 'Semua Makmal';
   if(scope==='Kampus'){
     const k = document.getElementById('planKampus').value;
@@ -2337,7 +2350,7 @@ function generateActionPlan(){
       <td>${e.perincian}</td><td>${e.cadangan||'-'}</td>
       <td style="min-width:110px;">&nbsp;</td><td style="min-width:100px;">&nbsp;</td>
     </tr>`).join('');
-  const focusSess = STATE.sessions.find(s=>s.id===focusSessionId);
+  const sesiLabel = sesiId===null ? 'Semua Sesi' : sessionName(sesiId);
   const doc = `<!DOCTYPE html><html lang="ms"><head><meta charset="UTF-8"><title>Pelan Tindakan — ${scopeLabel}</title>
   <style>
     body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;max-width:1100px;margin:30px auto;padding:0 20px;line-height:1.5;}
@@ -2351,7 +2364,7 @@ function generateActionPlan(){
     @media print{ body{margin:0;} }
   </style></head><body>
   <h1>PELAN TINDAKAN — AUDIT OSH MAKMAL FTKE</h1>
-  <h2>Skop: ${scopeLabel} · ${focusSess?focusSess.nama:'-'} · Dijana ${fmtDate(new Date().toISOString())}</h2>
+  <h2>Skop: ${scopeLabel} · ${sesiLabel} · Dijana ${fmtDate(new Date().toISOString())}</h2>
   <div class="meta"><b>Jumlah Item:</b> ${entries.length} (NCR: ${entries.filter(e=>e.jenis==='NCR').length}, Kritikal: ${entries.filter(e=>e.jenis==='Kritikal').length})</div>
   <table>
     <thead><tr><th class="c">Bil</th><th class="c">Jenis</th><th>Makmal</th><th>Kampus</th><th class="c">Seksyen</th><th>Item Seksyen</th><th>Perincian Penemuan</th><th>Cadangan Tindakan</th><th>Status Tindakan</th><th>Tarikh Sasaran</th></tr></thead>
@@ -2620,8 +2633,9 @@ async function downloadBackupExcelDashboard(){
 }
 function generateComplianceAnalysis(){
   const format = document.getElementById('analysisFormat').value;
-  const completed = STATE.audits.filter(a=>a.statusRekod==='Selesai');
-  if(!completed.length){ toast('Tiada rekod audit "Selesai" untuk dianalisis.'); return; }
+  const sesiId = adminReportSessionId();
+  const completed = STATE.audits.filter(a=>a.statusRekod==='Selesai' && (sesiId===null || a.sesiId===sesiId));
+  if(!completed.length){ toast('Tiada rekod audit "Selesai" untuk dianalisis dalam skop ini.'); return; }
 
   // ===== 1. Item paling kerap gagal (skor 0/1) — 10 teratas =====
   const itemStats = {};
@@ -2678,7 +2692,7 @@ function generateComplianceAnalysis(){
   const dijana = fmtDate(new Date().toISOString());
 
   if(format==='html'){
-    const doc = buildAnalysisHtml(itemRanked, sessionTrend, campusCompare, sectionStats, dijana, completed.length);
+    const doc = buildAnalysisHtml(itemRanked, sessionTrend, campusCompare, sectionStats, dijana, completed.length, sesiId===null?'Semua Sesi (Gabungan)':sessionName(sesiId));
     const blob = new Blob([doc], {type:'text/html'});
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -2687,7 +2701,7 @@ function generateComplianceAnalysis(){
     toast('Laporan Analisis Pematuhan dijana & dimuat turun.');
     return;
   }
-  const doc = buildAnalysisHtml(itemRanked, sessionTrend, campusCompare, sectionStats, dijana, completed.length);
+  const doc = buildAnalysisHtml(itemRanked, sessionTrend, campusCompare, sectionStats, dijana, completed.length, sesiId===null?'Semua Sesi (Gabungan)':sessionName(sesiId));
   const blob = new Blob(['\ufeff'+doc], {type:'application/msword'});
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -2695,7 +2709,7 @@ function generateComplianceAnalysis(){
   document.body.appendChild(link); link.click(); document.body.removeChild(link);
   toast('Dokumen Word Analisis Pematuhan dijana & dimuat turun.');
 }
-function buildAnalysisHtml(itemRanked, sessionTrend, campusCompare, sectionStats, dijana, jumlahAudit){
+function buildAnalysisHtml(itemRanked, sessionTrend, campusCompare, sectionStats, dijana, jumlahAudit, sesiLabel){
   const itemRows = itemRanked.map((x,i)=>`
     <tr><td class="c">${i+1}</td><td class="c">${x.code}</td><td>${x.teks}</td>
       <td class="c" style="color:#B23A2E;font-weight:bold;">${x.skor0}</td>
@@ -2722,7 +2736,7 @@ function buildAnalysisHtml(itemRanked, sessionTrend, campusCompare, sectionStats
     @media print{ body{margin:0;} }
   </style></head><body>
   <h1>ANALISIS PEMATUHAN — AUDIT OSH MAKMAL FTKE</h1>
-  <h2 class="sub">Merentasi semua sesi · ${jumlahAudit} audit "Selesai" · Dijana ${dijana}</h2>
+  <h2 class="sub">${sesiLabel} · ${jumlahAudit} audit "Selesai" · Dijana ${dijana}</h2>
 
   <h2 class="section">1. Item Paling Kerap Gagal (10 Teratas)</h2>
   <p class="note">Kekerapan skor 0 (Tidak Patuh) dan 1 (Perlu Penambahbaikan) merentasi semua audit — tunjuk isu sistemik yang berulang.</p>
