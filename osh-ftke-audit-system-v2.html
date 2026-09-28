@@ -3800,6 +3800,7 @@ async function generateDocument(id, format){
     <div>Disediakan oleh (Auditor):<br><br>_____________________<br>${a.auditor}</div>
     <div>Diterima & Diakui oleh (PIC Makmal):<br><br>_____________________<br>${a.pic}</div>
   </div>
+  <p style="margin-top:18px;font-size:11px;color:#666;font-style:italic;">Nota: Laporan ini adalah cetakan/janaan digital daripada Sistem Audit OSH FTKE. Pengesahan dan penerimaan direkodkan secara elektronik dalam sistem; tandatangan fizikal tidak diperlukan bagi salinan ini.</p>
   </body></html>`;
 
   if(format==='word'){
@@ -3873,6 +3874,7 @@ async function generateDocument(id, format){
       <div>Disediakan oleh (Auditor):<br><br>_____________________<br>${a.auditor}</div>
       <div>Diterima & Diakui oleh (PIC Makmal):<br><br>_____________________<br>${a.pic}</div>
     </div>
+    <p style="margin-top:18px;font-size:11px;color:#666;font-style:italic;">Nota: Laporan ini adalah cetakan/janaan digital daripada Sistem Audit OSH FTKE. Pengesahan dan penerimaan direkodkan secara elektronik dalam sistem; tandatangan fizikal tidak diperlukan bagi salinan ini.</p>
     </body></html>`;
 
     const mhtml = buildMhtmlDocument(docWord, wordImages);
