@@ -1409,11 +1409,12 @@ function renderDashboard(){
     </div>` : ''}
 
     <div class="section-title">Jana Dokumen Audit Mengikut Makmal <div class="rule"></div></div>
+    ${(()=>{ const dashMakmalList = all.filter(a=>a.statusRekod!=='Draf'); return dashMakmalList.length ? `
     <div class="card" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
       <div style="flex:1;min-width:200px;">
-        <label class="field-label">Pilih Makmal</label>
+        <label class="field-label">Pilih Makmal (sesi: ${focusSession?focusSession.nama:'-'})</label>
         <select id="dashSelectMakmal">
-          ${all.filter(a=>a.statusRekod!=='Draf').map(a=>`<option value="${a.id}">${a.namaMakmal} — ${a.kampus} (${fmtDate(a.tarikh)})</option>`).join('')}
+          ${dashMakmalList.map(a=>`<option value="${a.id}">${a.namaMakmal} — ${a.kampus} (${fmtDate(a.tarikh)})</option>`).join('')}
         </select>
       </div>
       <div style="min-width:170px;">
@@ -1426,6 +1427,11 @@ function renderDashboard(){
       </div>
       <button class="btn" onclick="viewAuditDetail(document.getElementById('dashSelectMakmal').value)">Lihat Butiran</button>
       <button class="btn primary" onclick="generateDocument(document.getElementById('dashSelectMakmal').value, document.getElementById('dashFormat').value)">⤓ Jana Dokumen</button>
+    </div>` : `
+    <div class="card">
+      <div class="empty">Tiada audit siap (bukan Draf) untuk sesi/kampus yang dipaparkan sekarang (${focusSession?focusSession.nama:'-'}${dashboardCampusFilter!=='Semua' ? ', '+dashboardCampusFilter : ''}).
+      Tukar penapis sesi/kampus di atas, atau pergi ke <b>Pengurusan Audit → Skop Sesi</b> untuk jana dokumen merentasi semua sesi.</div>
+    </div>`; })()}
     </div>
 
     <div class="section-title">Senarai Audit (Semua Auditor) <div class="rule"></div></div>
@@ -1652,7 +1658,7 @@ function generateScoreGraph(){
   const statusColorMap = {CEMERLANG:'#1B7A3D',BAIK:'#8FBC3F',MEMUASKAN:'#E0A82E','PERLU PENAMBAHBAIKAN':'#D9722E','TIDAK MEMUASKAN':'#C0392B'};
   const base = list.map(a=>{
     const s = computeScore(a.items);
-    const kritCount = STATE.admin.criticalItems.filter(c=>a.items[c].skor==='0').length;
+    const kritCount = STATE.admin.criticalItems.filter(c=> a.items[c] && a.items[c].skor==='0').length;
     return {nama:a.namaMakmal, kampus:a.kampus, pct:s.pct, status:s.status, kritikal:kritCount, ncr:a.nc.length, ofi:a.ofi.length};
   });
 
@@ -1920,8 +1926,9 @@ async function generateNcOfiReport(){
 }
 
 function viewAuditDetail(id){
+  if(!id){ toast('Tiada makmal dipilih. Sila pilih makmal daripada senarai dahulu.'); return; }
   const a = STATE.audits.find(x=>String(x.id)===String(id));
-  if(!a) return;
+  if(!a){ toast('Rekod audit untuk makmal ini tidak dijumpai.'); return; }
   const s = computeScore(a.items);
   const crit = STATE.admin.criticalItems.filter(c=> a.items[c] && a.items[c].skor==='0');
   const sectionsHtml = SECTIONS.map(sec=>{
@@ -3085,7 +3092,9 @@ function b1LoadForEdit(id){
   b1 = freshB1();
   b1.editingId = a.id;
   b1.general = {kampus:a.kampus, namaMakmal:a.namaMakmal, lokasi:a.lokasi, tarikh:a.tarikh, auditor:a.auditor, pic:a.pic};
-  b1.items = JSON.parse(JSON.stringify(a.items));
+  // Gabung dengan default segar dahulu (bukan ganti terus) supaya item BAHARU yang ditambah selepas
+  // audit lama ini direkodkan (cth. semasa checklist dikemaskini) tetap ada dalam b1.items - elak "undefined.skor".
+  b1.items = Object.assign({}, b1.items, JSON.parse(JSON.stringify(a.items)));
   b1.step = 0;
   document.getElementById('auditDetailModalHost') && (document.getElementById('auditDetailModalHost').innerHTML = '');
   nav('borang1');
@@ -3655,10 +3664,11 @@ function buildMhtmlDocument(htmlBody, images){
 
 async function generateDocument(id, format){
   format = format || 'word';
+  if(!id){ toast('Tiada makmal dipilih. Sila pilih makmal daripada senarai dahulu.'); return; }
   const a = STATE.audits.find(x=>String(x.id)===String(id));
-  if(!a) return;
+  if(!a){ toast('Rekod audit untuk makmal ini tidak dijumpai (mungkin telah dipadam atau belum dimuat).'); return; }
   const s = computeScore(a.items);
-  const crit = STATE.admin.criticalItems.filter(c=>a.items[c].skor==='0');
+  const crit = STATE.admin.criticalItems.filter(c=> a.items[c] && a.items[c].skor==='0');
 
   if(format==='excel'){
     toast('Menjana fail Excel... sila tunggu sebentar.');
@@ -3680,7 +3690,7 @@ async function generateDocument(id, format){
     wsC.columns = [{width:6},{width:26},{width:55},{width:8},{width:30}];
     wsC.addRow(['Kod','Bahagian','Item Audit','Skor','Catatan']).font = {bold:true};
     SECTIONS.forEach(sec=> sec.items.forEach(([code,text])=>{
-      const it = a.items[code];
+      const it = a.items[code] || {skor:'NA', catatan:'(item ditambah selepas audit ini direkodkan)'};
       wsC.addRow([code, `${sec.code}. ${sec.title}`, text, it.skor, it.catatan||'']);
     }));
 
@@ -3735,7 +3745,7 @@ async function generateDocument(id, format){
 
   const sectionsHtml = SECTIONS.map(sec=>{
     const rows = sec.items.map(([code,text])=>{
-      const it = a.items[code];
+      const it = a.items[code] || {skor:'NA', catatan:'(item ditambah selepas audit ini direkodkan)'};
       return `<tr><td class="c">${code}</td><td>${text}</td><td class="c">${it.skor}</td><td>${it.catatan||''}</td></tr>`;
     }).join('');
     return `<h3>${sec.code}. ${sec.title}</h3>
